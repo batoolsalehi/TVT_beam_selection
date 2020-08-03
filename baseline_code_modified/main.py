@@ -35,6 +35,7 @@ def ind2sub(array_shape, ind):
 
 
 def beamsLogScale(y,thresholdBelowMax):
+        # shape is (#,256)
         y_shape = y.shape
 
         for i in range(0,y_shape[0]):
@@ -66,7 +67,25 @@ def getBeamOutput(output_file):
 
     return y,num_classes
 
+def custom_label(output_file):
 
+    print("Reading dataset...", output_file)
+    output_cache_file = np.load(output_file)
+    yMatrix = output_cache_file['output_classification']
+
+    yMatrix = np.abs(yMatrix)
+    yMatrix /= np.max(yMatrix)
+    yMatrixShape = yMatrix.shape
+    num_classes = yMatrix.shape[1] * yMatrix.shape[2]
+
+    y = yMatrix.reshape(yMatrix.shape[0],num_classes)
+    y_shape = y.shape
+    for i in range(0,y_shape[0]):
+        thisOutputs = y[i,:]
+        logOut = 20*np.log10(thisOutputs)
+        y[i,:] = logOut
+
+    return y,num_classes
 
 
 
@@ -145,10 +164,17 @@ if 'lidar' in args.input:
 # Output configuration
 #train
 output_train_file = data_dir+'beam_output/beams_output_train.npz'
-y_train,num_classes = getBeamOutput(output_train_file)
-
 output_validation_file = data_dir+'beam_output/beams_output_validation.npz'
-y_validation, _ = getBeamOutput(output_validation_file)
+
+if args.custom_label:
+    y_train,num_classes = custom_label(output_train_file)
+    print("check",y_train)
+    y_validation, _  = custom_label(output_validation_file)
+else:
+    y_train,num_classes = getBeamOutput(output_train_file)
+    y_validation, _ = getBeamOutput(output_validation_file)
+
+
 
 ##############################################################################
 # Model configuration
