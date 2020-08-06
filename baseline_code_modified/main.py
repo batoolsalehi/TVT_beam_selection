@@ -9,8 +9,8 @@ from sklearn.model_selection import train_test_split
 from ModelHandler import ModelHandler
 import numpy as np
 import argparse
-
-
+from sklearn.model_selection import KFold
+from tqdm import tqdm
 
 
 def top_10_accuracy(y_true,y_pred):
@@ -86,6 +86,32 @@ def custom_label(output_file):
         y[i,:] = logOut
 
     return y,num_classes
+
+
+def balance_data(beams,coords):
+    Best_beam=[]
+    k = 1
+    for count,val in enumerate(beams):   # beams is 9..*256
+        Index = val.argsort()[-k:][::-1]
+        Best_beam.append(Index[0])
+
+    Apperance = {i:Best_beam.count(i) for i in Best_beam}
+    Max_apperance = max(Apperance.values())
+
+    for i in tqdm(Apperance.keys()):
+        ind = [ind for ind, value in enumerate(Best_beam) if value == i]
+        randperm = np.random.permutation(int(Max_apperance-Apperance[i]))
+
+        ADD_beam = np.empty((len(randperm), 256))
+        ADD_coord = np.empty((len(randperm), 2))
+
+        for i in range(len(randperm)):
+            ADD_beam[i,:] = beams[i]
+            ADD_coord[i,:] = coords[i]
+
+        beams = np.concatenate((beams, ADD_beam), axis=0)
+        coords = np.concatenate((coords, ADD_coord), axis=0)
+    return beams, coords
 
 
 
@@ -183,18 +209,18 @@ else:
 #multimodal
 multimodal = False if len(args.input) == 1 else len(args.input)
 
-num_epochs = 3
+num_epochs = args.epochs
 batch_size = 32
 validationFraction = 0.2 #from 0 to 1
 modelHand = ModelHandler()
-opt = Adam()
+opt = Adam(lr=args.lr)
 
 if 'coord' in args.input:
     print(num_classes)
     print(coord_train_input_shape[1])
     coord_model = modelHand.createArchitecture('coord_mlp',num_classes,coord_train_input_shape[1],'complete')
 if 'img' in args.input:
-    num_epochs = 5
+   #num_epochs = 5
     if nCh==1:
         img_model = modelHand.createArchitecture('light_image',num_classes,[img_train_input_shape[1],img_train_input_shape[2],1],'complete')
     else:
