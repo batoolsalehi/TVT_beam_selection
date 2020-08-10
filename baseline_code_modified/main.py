@@ -59,13 +59,11 @@ def beamsLogScale(y,thresholdBelowMax):
             thisOutputs[zeroedValueIndices]=0
             thisOutputs = thisOutputs / sum(thisOutputs)
             y[i,:] = thisOutputs
-
         return y
 
 def getBeamOutput(output_file):
 
     thresholdBelowMax = 6
-
     print("Reading dataset...", output_file)
     output_cache_file = np.load(output_file)
     yMatrix = output_cache_file['output_classification']
@@ -81,7 +79,7 @@ def getBeamOutput(output_file):
     return y,num_classes
 
 def custom_label(output_file):
-
+    'This function returns one hot encoded labels of beam pairs'
     print("Reading dataset...", output_file)
     output_cache_file = np.load(output_file)
     yMatrix = output_cache_file['output_classification']
@@ -93,11 +91,14 @@ def custom_label(output_file):
 
     y = yMatrix.reshape(yMatrix.shape[0],num_classes)
     y_shape = y.shape
+    k = 1           # For one hot encoding we need the best one
+
     for i in range(0,y_shape[0]):
         thisOutputs = y[i,:]
         logOut = 20*np.log10(thisOutputs)
-        y[i,:] = logOut
-
+        max_index = logOut.argsort()[-k:][::-1]
+        y[i,:] = 0
+        y[i,max_index] = 1
     return y,num_classes
 
 
