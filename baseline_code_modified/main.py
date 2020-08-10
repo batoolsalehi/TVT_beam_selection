@@ -158,10 +158,7 @@ if args.id_gpu >= 0:
     # The GPU id to use
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.id_gpu)
 
-
-tf.device('/device:GPU:0')
-data_dir = args.data_folder+'/'
-tgtRec = 3
+data_dir = args.data_folder
 
 
 if 'coord' in args.input:
@@ -224,12 +221,10 @@ output_validation_file = data_dir+'beam_output/beams_output_validation.npz'
 
 if args.custom_label:
     y_train,num_classes = custom_label(output_train_file)
-    print("check",y_train)
     y_validation, _  = custom_label(output_validation_file)
 else:
     y_train,num_classes = getBeamOutput(output_train_file)
     y_validation, _ = getBeamOutput(output_validation_file)
-
 
 
 ##############################################################################
