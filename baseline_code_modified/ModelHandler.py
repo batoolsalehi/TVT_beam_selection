@@ -63,10 +63,12 @@ class ModelHandler:
 
 
         elif(model_type == 'coord_mlp'):
+            #initial 4,16,64
             input_coord = Input(shape = (input_shape,))
-            layer = Dense(4,activation='relu')(input_coord)
+            layer = Dense(64,activation='relu')(input_coord)
             layer = Dense(16,activation='relu')(layer)
-            layer = Dense(64,activation='relu')(layer)
+            layer = Dense(4,activation='relu')(layer)
+
             out = Dense(num_classes,activation='softmax')(layer)
 
             architecture = Model(inputs = input_coord, outputs = out)
