@@ -143,12 +143,13 @@ def balance_data(beams,coords):
 parser = argparse.ArgumentParser(description='Configure the files before training the net.')
 parser.add_argument('data_folder', help='Location of the data directory', type=str)
 #TODO: limit the number of input to 3
-parser.add_argument('--input', nargs='*', default=['coord'],
-choices = ['img', 'coord', 'lidar'],
+parser.add_argument('--input', nargs='*', default=['coord'],choices = ['img', 'coord', 'lidar'],
 help='Which data to use as input. Select from: img, lidar or coord.')
-parser.add_argument('-p','--plots',
-help='Use this parametter if you want to see the accuracy and loss plots',
-action='store_true')
+parser.add_argument('--custom_label', help='Use custom_label or not', type=bool, default=False)
+parser.add_argument('--lr', default=0.0001, type=float,help='learning rate for Adam optimizer',)
+parser.add_argument('--epochs', default=50, type = int, help='Specify the epochs to train')
+parser.add_argument('--shuffle', help='shuffle or not', type=bool, default =True)
+parser.add_argument('--id_gpu', default=2, type=int, help='which gpu to use.')
 args = parser.parse_args()
 
 
