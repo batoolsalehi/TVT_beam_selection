@@ -103,30 +103,41 @@ def custom_label(output_file):
 
 
 def balance_data(beams,coords):
-    Best_beam=[]
-    k = 1
-    for count,val in enumerate(beams):   # beams is 9..*256
+    'This function balances the dataset by generating multiple copies of classes with low Apperance'
+
+    Best_beam=[]    # a list of 9234 elements(0,1,...,256) with the index of best beam
+    k = 1          # Augment on best beam
+    for count,val in enumerate(beams):   # beams is 9234*256
         Index = val.argsort()[-k:][::-1]
         Best_beam.append(Index[0])
 
-    Apperance = {i:Best_beam.count(i) for i in Best_beam}
-    Max_apperance = max(Apperance.values())
+    Apperance = {i:Best_beam.count(i) for i in Best_beam}   #Selected beam:  count apperance of diffrent classes
+    print(Apperance)
+    Max_apperance = max(Apperance.values())                 # Class with highest apperance
 
     for i in tqdm(Apperance.keys()):
-        ind = [ind for ind, value in enumerate(Best_beam) if value == i]
-        randperm = np.random.permutation(int(Max_apperance-Apperance[i]))
-
+        ind = [ind for ind, value in enumerate(Best_beam) if value == i]    # Find elements which are equal to i
+        randperm = np.random.permutation(int(Max_apperance-Apperance[i]))%len(ind)
         ADD_beam = np.empty((len(randperm), 256))
         ADD_coord = np.empty((len(randperm), 2))
 
-        for i in range(len(randperm)):
-            ADD_beam[i,:] = beams[i]
-            ADD_coord[i,:] = coords[i]
-
+        for couter,v in enumerate(randperm):
+            ADD_beam[couter,:] = beams[ind[v]]
+            ADD_coord[couter,:] = coords[ind[v]]
         beams = np.concatenate((beams, ADD_beam), axis=0)
         coords = np.concatenate((coords, ADD_coord), axis=0)
-    return beams, coords
 
+    # print('Check class diversity After augmentation')
+    # Best_beam_augmented=[]    # a list of 9234 elements with the index of best beam
+    # k = 1          # Augment on best beam
+    # for count,val in enumerate(beams):   # beams is 9234*256
+    #     Index = val.argsort()[-k:][::-1]
+    #     Best_beam_augmented.append(Index[0])
+
+    # Apperance = {i:Best_beam_augmented.count(i) for i in Best_beam_augmented}   # Apprenace count
+    # print(Apperance)
+
+    return beams, coords
 
 
 parser = argparse.ArgumentParser(description='Configure the files before training the net.')
