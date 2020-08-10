@@ -238,7 +238,8 @@ num_epochs = args.epochs
 batch_size = 32
 validationFraction = 0.2 #from 0 to 1
 modelHand = ModelHandler()
-opt = Adam(lr=args.lr)
+opt = Adam(lr=args.lr, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
+#opt= Adam(lr=args.lr)
 
 if 'coord' in args.input:
     print(num_classes)
