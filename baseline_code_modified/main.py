@@ -153,6 +153,10 @@ parser.add_argument('--id_gpu', default=2, type=int, help='which gpu to use.')
 args = parser.parse_args()
 
 
+if args.id_gpu >= 0:
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    # The GPU id to use
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.id_gpu)
 
 
 tf.device('/device:GPU:0')
