@@ -242,8 +242,6 @@ opt = Adam(lr=args.lr, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgra
 #opt= Adam(lr=args.lr)
 
 if 'coord' in args.input:
-    print(num_classes)
-    print(coord_train_input_shape[1])
     coord_model = modelHand.createArchitecture('coord_mlp',num_classes,coord_train_input_shape[1],'complete')
 if 'img' in args.input:
    #num_epochs = 5
@@ -315,11 +313,26 @@ else:
         model.compile(loss=categorical_crossentropy,
                             optimizer=opt,
                             metrics=[metrics.categorical_accuracy,
-                                    metrics.top_k_categorical_accuracy, top_10_accuracy,
+                                    top_2_accuracy, top_10_accuracy,
                                     top_50_accuracy])
         model.summary()
+        b,c = balance_data(y_train,X_coord_train)
+        X_coord_train = c
+        y_train = b
+
+        randperm = np.random.permutation(len(X_coord_train))
+        y_train = y_train[randperm]
+        X_coord_train = X_coord_train[randperm]
+
         hist = model.fit(X_coord_train,y_train,
-        validation_data=(X_coord_validation, y_validation),epochs=num_epochs,batch_size=batch_size)
+        #validation_data=(X_coord_validation, y_validation),
+        epochs=num_epochs,batch_size=batch_size, shuffle=args.shuffle)
+        prediction = model.predict(X_coord_train)
+
+
+        # for i in prediction:
+        #     print(np.where(i==max(i)))
+
 
     elif 'img' in args.input:
         model = img_model
@@ -331,6 +344,10 @@ else:
         model.summary()
         hist = model.fit(X_img_train,y_train,
         validation_data=(X_img_validation, y_validation),epochs=num_epochs,batch_size=batch_size)
+        prediction = model.predict(X_img_validation)
+        for i in prediction:
+            max_index = i.argsort()[-1:][::-1]
+            print(max_index)
 
     else:
         model = lidar_model
