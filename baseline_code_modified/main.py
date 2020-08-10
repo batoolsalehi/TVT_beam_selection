@@ -4,7 +4,7 @@ from tensorflow.keras import metrics
 from tensorflow.keras.models import model_from_json,Model
 from tensorflow.keras.layers import Dense,concatenate
 from tensorflow.keras.losses import categorical_crossentropy
-from tensorflow.keras.optimizers import Adadelta,Adam
+from tensorflow.keras.optimizers import Adadelta,Adam, SGD
 from sklearn.model_selection import train_test_split
 from ModelHandler import ModelHandler
 import numpy as np
