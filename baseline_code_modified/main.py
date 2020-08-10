@@ -11,6 +11,16 @@ import numpy as np
 import argparse
 from sklearn.model_selection import KFold
 from tqdm import tqdm
+import random
+import os
+############################
+# Fix the seed
+############################
+seed = 0
+os.environ['PYTHONHASHSEED']=str(seed)
+tf.set_random_seed(seed)
+np.random.seed(seed)
+random.seed(seed)
 
 
 def top_10_accuracy(y_true,y_pred):
