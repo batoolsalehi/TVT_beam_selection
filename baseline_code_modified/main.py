@@ -23,6 +23,9 @@ np.random.seed(seed)
 random.seed(seed)
 
 
+def top_2_accuracy(y_true,y_pred):
+    return metrics.top_k_categorical_accuracy(y_true,y_pred,k=2)
+
 def top_10_accuracy(y_true,y_pred):
     return metrics.top_k_categorical_accuracy(y_true,y_pred,k=10)
 
