@@ -189,17 +189,22 @@ def balance_data(beams,modal,variance,dim):
 
 
 parser = argparse.ArgumentParser(description='Configure the files before training the net.')
-parser.add_argument('data_folder', help='Location of the data directory', type=str)
+parser.add_argument('--data_folder', help='Location of the data directory', type=str)
 #TODO: limit the number of input to 3
 parser.add_argument('--input', nargs='*', default=['coord'],choices = ['img', 'coord', 'lidar'],
 help='Which data to use as input. Select from: img, lidar or coord.')
-parser.add_argument('--custom_label', help='Use custom_label or not', type=bool, default=False)
 parser.add_argument('--lr', default=0.0001, type=float,help='learning rate for Adam optimizer',)
 parser.add_argument('--epochs', default=50, type = int, help='Specify the epochs to train')
-parser.add_argument('--shuffle', help='shuffle or not', type=bool, default =True)
+parser.add_argument('--shuffle', help='shuffle or not', type=str2bool, default =True)
 parser.add_argument('--id_gpu', default=2, type=int, help='which gpu to use.')
-args = parser.parse_args()
+parser.add_argument('--Aug', type=str2bool, help='Do Augmentaion to balance the dataset or not', default=False)
+parser.add_argument('--strategy', type=str ,default='one_hot', help='labeling strategy to use',choices=['baseline','one_hot','reg'])
+parser.add_argument('--restore_aug_data', type=str2bool, help='restore augmented data or not', default=False)
+parser.add_argument('--augmented_folder', help='Location of the augmeneted data', type=str, default='/home/batool/beam_selection/baseline_code_modified/aug_data/')
 
+
+args = parser.parse_args()
+print('Argumen parser inputs', args)
 
 if args.id_gpu >= 0:
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
