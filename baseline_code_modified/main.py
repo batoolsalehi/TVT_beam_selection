@@ -142,7 +142,7 @@ def custom_label(output_file, strategy='one_hot' ):
     return y,num_classes
 
 
-def balance_data(beams,coords):
+def balance_data(beams,modal,variance,dim):
     'This function balances the dataset by generating multiple copies of classes with low Apperance'
 
     Best_beam=[]    # a list of 9234 elements(0,1,...,256) with the index of best beam
@@ -157,15 +157,23 @@ def balance_data(beams,coords):
 
     for i in tqdm(Apperance.keys()):
         ind = [ind for ind, value in enumerate(Best_beam) if value == i]    # Find elements which are equal to i
-        randperm = np.random.permutation(int(Max_apperance-Apperance[i]))%len(ind)
-        ADD_beam = np.empty((len(randperm), 256))
-        ADD_coord = np.empty((len(randperm), 2))
+        randperm = np.random.RandomState(seed).permutation(int(Max_apperance-Apperance[i]))%len(ind)
 
+        extension = (len(randperm),)+dim
+        print('extension',extension)
+        ADD_beam = np.empty((len(randperm), 256))
+
+        ADD_modal = np.empty(extension)
+        print('shapes',ADD_beam.shape, ADD_modal.shape)
         for couter,v in enumerate(randperm):
             ADD_beam[couter,:] = beams[ind[v]]
-            ADD_coord[couter,:] = coords[ind[v]]
+            ADD_modal[couter,:] = modal[ind[v]]+variance*np.random.rand(*dim)
         beams = np.concatenate((beams, ADD_beam), axis=0)
-        coords = np.concatenate((coords, ADD_coord), axis=0)
+        modal = np.concatenate((modal, ADD_modal), axis=0)
+
+    randperm = np.random.RandomState(seed).permutation(len(beams))
+    beams = beams[randperm]
+    modal = modal[randperm]
 
     # print('Check class diversity After augmentation')
     # Best_beam_augmented=[]    # a list of 9234 elements with the index of best beam
@@ -177,7 +185,7 @@ def balance_data(beams,coords):
     # Apperance = {i:Best_beam_augmented.count(i) for i in Best_beam_augmented}   # Apprenace count
     # print(Apperance)
 
-    return beams, coords
+    return beams, modal
 
 
 parser = argparse.ArgumentParser(description='Configure the files before training the net.')
