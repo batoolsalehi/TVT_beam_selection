@@ -298,34 +298,29 @@ if 'img' in args.input:
 
 if 'lidar' in args.input:
     ###############################################################################
-    # LIDAR configuration
     #train
-    lidar_train_input_file = data_dir+'lidar_input/lidar_train.npz'
-    print("Reading dataset... ",lidar_train_input_file)
-    lidar_train_cache_file = np.load(lidar_train_input_file)
-    X_lidar_train = lidar_train_cache_file['input']
+    X_lidar_train = open_npz(args.data_folder+'lidar_input/lidar_train.npz','input')
     #validation
-    lidar_validation_input_file = data_dir+'lidar_input/lidar_validation.npz'
-    print("Reading dataset... ",lidar_validation_input_file)
-    lidar_validation_cache_file = np.load(lidar_validation_input_file)
-    X_lidar_validation = lidar_validation_cache_file['input']
-
+    X_lidar_validation = open_npz(args.data_folder+'lidar_input/lidar_validation.npz','input')
     lidar_train_input_shape = X_lidar_train.shape
 
+    if args.Aug:
+        try:
+            X_lidar_train = open_npz(args.augmented_folder+'lidar_input/lidar_train.npz','train')
+            y_train = open_npz(args.augmented_folder+'beam_output/beams_output_train.npz','train')
 
-###############################################################################
-# Output configuration
-#train
-output_train_file = data_dir+'beam_output/beams_output_train.npz'
-output_validation_file = data_dir+'beam_output/beams_output_validation.npz'
+            #validation
+            X_lidar_validation = open_npz(args.augmented_folder+'lidar_input/lidar_validation.npz','val')
+            y_validation = open_npz(args.augmented_folder+'beam_output/beams_output_validation.npz','val')
+        except:
 
-if args.custom_label:
-    y_train,num_classes = custom_label(output_train_file)
-    y_validation, _  = custom_label(output_validation_file)
-else:
-    y_train,num_classes = getBeamOutput(output_train_file)
-    y_validation, _ = getBeamOutput(output_validation_file)
-
+            print('****************Augment Lidar****************')
+            y_train, X_lidar_train = balance_data(Initial_labels_train,X_lidar_train,0.001,(20, 200, 10))
+            y_validation, X_lidar_validation = balance_data(Initial_labels_val,X_lidar_validation,0.001,(20, 200, 10))
+            print('saving input')
+            save_npz(args.augmented_folder+'lidar_input/','ilidar_train.npz',X_lidar_train,'lidar_validation.npz',X_lidar_validation)
+            print('saving Outputs')
+            save_npz(args.augmented_folder+'beam_output/','beams_output_train.npz',y_train,'beams_output_validation.npz',y_validation)
 
 ##############################################################################
 # Model configuration
