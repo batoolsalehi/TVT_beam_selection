@@ -266,24 +266,35 @@ if 'coord' in args.input:
 
 if 'img' in args.input:
     ###############################################################################
-    # Image configuration
     resizeFac = 20 # Resize Factor
     nCh = 1 # The number of channels of the image
     imgDim = (360,640) # Image dimensions
-    method = 1
-    #train
-    img_train_input_file = data_dir+'image_input/img_input_train_'+str(resizeFac)+'.npz'
-    print("Reading dataset... ",img_train_input_file)
-    img_train_cache_file = np.load(img_train_input_file)
-    X_img_train = img_train_cache_file['inputs']
-    #validation
-    img_validation_input_file = data_dir+'image_input/img_input_validation_'+str(resizeFac)+'.npz'
-    print("Reading dataset... ",img_validation_input_file)
-    img_validation_cache_file = np.load(img_validation_input_file)
-    X_img_validation = img_validation_cache_file['inputs']
 
+    #train
+    X_img_train = open_npz(args.data_folder+'image_input/img_input_train_'+str(resizeFac)+'.npz','inputs')
+    #validation
+    X_img_validation = open_npz(args.data_folder+'image_input/img_input_validation_'+str(resizeFac)+'.npz','inputs')
     img_train_input_shape = X_img_train.shape
 
+    if args.Aug:
+        try:
+            #train
+            X_img_train = open_npz(args.augmented_folder+'image_input/img_input_train_20.npz','train')
+            y_train = open_npz(args.augmented_folder+'beam_output/beams_output_train.npz','train')
+
+            #validation
+            X_img_validation = open_npz(args.augmented_folder+'image_input/img_input_validation_20.npz','val')
+            y_validation = open_npz(args.augmented_folder+'beam_output/beams_output_validation.npz','val')
+
+        except:
+
+            print('****************Augment Image****************')
+            y_train, X_img_train = balance_data(Initial_labels_train,X_img_train,0.001,(48, 81, 1))
+            y_validation, X_img_validation = balance_data(Initial_labels_val,X_img_validation,0.001,(48, 81, 1))
+            print('saving input')
+            save_npz(args.augmented_folder+'image_input/','img_input_train_20.npz',X_img_train,'img_input_validation_20.npz',X_img_validation)
+            print('saving Outputs')
+            save_npz(args.augmented_folder+'beam_output/','beams_output_train.npz',y_train,'beams_output_validation.npz',y_validation)
 
 if 'lidar' in args.input:
     ###############################################################################
