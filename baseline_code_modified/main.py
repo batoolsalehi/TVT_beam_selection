@@ -4,6 +4,7 @@ from tensorflow.keras import metrics
 from tensorflow.keras.models import model_from_json,Model
 from tensorflow.keras.layers import Dense,concatenate
 from tensorflow.keras.losses import categorical_crossentropy
+from tensorflow.losses import mean_squared_error
 from tensorflow.keras.optimizers import Adadelta,Adam, SGD
 from sklearn.model_selection import train_test_split
 from ModelHandler import ModelHandler
@@ -21,6 +22,34 @@ os.environ['PYTHONHASHSEED']=str(seed)
 tf.set_random_seed(seed)
 np.random.seed(seed)
 random.seed(seed)
+
+
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
+def check_and_create(dir_path):
+    if os.path.exists(dir_path):
+        return True
+    else:
+        os.makedirs(dir_path)
+        return False
+
+def open_npz(path,key):
+    data = np.load(path)[key]
+    return data
+
+def save_npz(path,train_name,train_data,val_name,val_data):
+    check_and_create(path)
+    np.savez_compressed(path+train_name, train=train_data)
+    np.savez_compressed(path+val_name, val=val_data)
 
 
 def top_2_accuracy(y_true,y_pred):
@@ -44,7 +73,6 @@ def ind2sub(array_shape, ind):
     rows = (ind.astype('int') / array_shape[1])
     cols = ind % array_shape[1]
     return (rows, cols)
-
 
 
 def beamsLogScale(y,thresholdBelowMax):
