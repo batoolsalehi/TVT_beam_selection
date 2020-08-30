@@ -214,7 +214,7 @@ output_validation_file = args.data_folder+'beam_output/beams_output_validation.n
 if args.strategy == 'one_hot':
     y_train,num_classes = custom_label(output_train_file,'one_hot')
     y_validation, _  = custom_label(output_validation_file,'one_hot')
-elif args.strategy == 'baseline':
+elif args.strategy == 'default':
     y_train,num_classes = getBeamOutput(output_train_file)
     y_validation, _ = getBeamOutput(output_validation_file)
 elif args.strategy == 'reg':
@@ -224,15 +224,13 @@ else:
     print('invalid labeling strategy')
 
 
-Initial_labels_train = y_train         # these are same for all modalities
-Initial_labels_val = y_validation
-
-
 ###############################################################################
 # Inputs
 ###############################################################################
+Initial_labels_train = y_train         # these are same for all modalities
+Initial_labels_val = y_validation
+
 if 'coord' in args.input:
-    # Coordinate configuration
     #train
     X_coord_train = open_npz(args.data_folder+'coord_input/coord_train.npz','coordinates')
     #validation
@@ -246,15 +244,14 @@ if 'coord' in args.input:
             y_train = open_npz(args.augmented_folder+'beam_output/beams_output_train.npz','train')
 
             #validation
-            X_coord_validation = open_npz(args.augmented_folder+'coord_input/coord_validation.npz','val')
-            y_validation = open_npz(args.augmented_folder+'beam_output/beams_output_validation.npz','val')
+            # X_coord_validation = open_npz(args.augmented_folder+'coord_input/coord_validation.npz','val')
+            # y_validation = open_npz(args.augmented_folder+'beam_output/beams_output_validation.npz','val')
         except:
-
             print('****************Augment coordinates****************')
             y_train, X_coord_train = balance_data(Initial_labels_train,X_coord_train,0.001,(2,))
-            y_validation, X_coord_validation = balance_data(Initial_labels_val,X_coord_validation,0.001,(2,))
+            # y_validation, X_coord_validation = balance_data(Initial_labels_val,X_coord_validation,0.001,(2,))
             save_npz(args.augmented_folder+'coord_input/','coord_train.npz',X_coord_train,'coord_validation.npz',X_coord_validation)
-            save_npz(args.augmented_folder+'beam_output/','beams_output_train.npz',y_train,'beams_output_validation.npz',y_validation)
+            # save_npz(args.augmented_folder+'beam_output/','beams_output_train.npz',y_train,'beams_output_validation.npz',y_validation)
 
 
 if 'img' in args.input:
