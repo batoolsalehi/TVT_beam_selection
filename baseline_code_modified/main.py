@@ -1,3 +1,5 @@
+from __future__ import division
+
 import csv
 import tensorflow as tf
 from tensorflow.keras import metrics
@@ -14,6 +16,8 @@ from sklearn.model_selection import KFold
 from tqdm import tqdm
 import random
 import os
+from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import RobustScaler
 ############################
 # Fix the seed
 ############################
@@ -34,7 +38,6 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
-
 def check_and_create(dir_path):
     if os.path.exists(dir_path):
         return True
@@ -51,7 +54,6 @@ def save_npz(path,train_name,train_data,val_name,val_data):
     np.savez_compressed(path+train_name, train=train_data)
     np.savez_compressed(path+val_name, val=val_data)
 
-
 def top_2_accuracy(y_true,y_pred):
     return metrics.top_k_categorical_accuracy(y_true,y_pred,k=2)
 
@@ -61,23 +63,8 @@ def top_10_accuracy(y_true,y_pred):
 def top_50_accuracy(y_true,y_pred):
     return metrics.top_k_categorical_accuracy(y_true,y_pred,k=50)
 
-def sub2ind(array_shape, rows, cols):
-    ind = rows*array_shape[1] + cols
-    ind[ind < 0] = -1
-    ind[ind >= array_shape[0]*array_shape[1]] = -1
-    return ind
-
-def ind2sub(array_shape, ind):
-    ind[ind < 0] = -1
-    ind[ind >= array_shape[0]*array_shape[1]] = -1
-    rows = (ind.astype('int') / array_shape[1])
-    cols = ind % array_shape[1]
-    return (rows, cols)
-
-
 def beamsLogScale(y,thresholdBelowMax):
-        # shape is (#,256)
-        y_shape = y.shape
+        y_shape = y.shape   # shape is (#,256)
 
         for i in range(0,y_shape[0]):
             thisOutputs = y[i,:]
@@ -109,17 +96,18 @@ def getBeamOutput(output_file):
 def custom_label(output_file, strategy='one_hot' ):
     'This function generates the labels based on input strategies, one hot, reg'
 
-    print("Reading dataset...", output_file)
+    print("Reading beam outputs...", output_file)
     output_cache_file = np.load(output_file)
     yMatrix = output_cache_file['output_classification']
 
     yMatrix = np.abs(yMatrix)
-    yMatrix /= np.max(yMatrix)
+
+    # yMatrix /= np.max(yMatrix)
+
     yMatrixShape = yMatrix.shape
     num_classes = yMatrix.shape[1] * yMatrix.shape[2]
     y = yMatrix.reshape(yMatrix.shape[0],num_classes)
     y_shape = y.shape
-
 
     if strategy == 'one_hot':
         k = 1           # For one hot encoding we need the best one
@@ -134,10 +122,15 @@ def custom_label(output_file, strategy='one_hot' ):
         for i in range(0,y_shape[0]):
             thisOutputs = y[i,:]
             logOut = 20*np.log10(thisOutputs)
+            # y[i,:] = thisOutputs
             y[i,:] = logOut
 
     else:
         print('Invalid strategy')
+    # scaler = RobustScaler()
+    # scaler.fit(y)
+    # y = scaler.transform(y)
+    print('one sample', y[0,:])
 
     return y,num_classes
 
@@ -146,7 +139,7 @@ def balance_data(beams,modal,variance,dim):
     'This function balances the dataset by generating multiple copies of classes with low Apperance'
 
     Best_beam=[]    # a list of 9234 elements(0,1,...,256) with the index of best beam
-    k = 1          # Augment on best beam
+    k = 1           # Augment on best beam
     for count,val in enumerate(beams):   # beams is 9234*256
         Index = val.argsort()[-k:][::-1]
         Best_beam.append(Index[0])
@@ -159,47 +152,47 @@ def balance_data(beams,modal,variance,dim):
         ind = [ind for ind, value in enumerate(Best_beam) if value == i]    # Find elements which are equal to i
         randperm = np.random.RandomState(seed).permutation(int(Max_apperance-Apperance[i]))%len(ind)
 
-        extension = (len(randperm),)+dim
-        print('extension',extension)
         ADD_beam = np.empty((len(randperm), 256))
-
+        extension = (len(randperm),)+dim
         ADD_modal = np.empty(extension)
         print('shapes',ADD_beam.shape, ADD_modal.shape)
+
         for couter,v in enumerate(randperm):
             ADD_beam[couter,:] = beams[ind[v]]
             ADD_modal[couter,:] = modal[ind[v]]+variance*np.random.rand(*dim)
         beams = np.concatenate((beams, ADD_beam), axis=0)
         modal = np.concatenate((modal, ADD_modal), axis=0)
 
-    randperm = np.random.RandomState(seed).permutation(len(beams))
-    beams = beams[randperm]
-    modal = modal[randperm]
-
-    # print('Check class diversity After augmentation')
-    # Best_beam_augmented=[]    # a list of 9234 elements with the index of best beam
-    # k = 1          # Augment on best beam
-    # for count,val in enumerate(beams):   # beams is 9234*256
-    #     Index = val.argsort()[-k:][::-1]
-    #     Best_beam_augmented.append(Index[0])
-
-    # Apperance = {i:Best_beam_augmented.count(i) for i in Best_beam_augmented}   # Apprenace count
-    # print(Apperance)
-
     return beams, modal
+
+
+def meaure_topk_for_regression(y_true,y_pred):
+    'Measure top 10 accuracy for regression'
+    c = 0
+    for i in range(len(y_pred)):
+        # shape of each elemnt is (256,)
+        A = y_true[i]
+        B = y_pred[i]
+        top_predictions = B.argsort()[-10:][::-1]
+        best = np.argmax(A)
+        if best in top_predictions:
+             c +=1
+    return c/len(y_pred)
+
 
 
 parser = argparse.ArgumentParser(description='Configure the files before training the net.')
 parser.add_argument('--data_folder', help='Location of the data directory', type=str)
-#TODO: limit the number of input to 3
 parser.add_argument('--input', nargs='*', default=['coord'],choices = ['img', 'coord', 'lidar'],
 help='Which data to use as input. Select from: img, lidar or coord.')
 parser.add_argument('--lr', default=0.0001, type=float,help='learning rate for Adam optimizer',)
-parser.add_argument('--epochs', default=50, type = int, help='Specify the epochs to train')
+parser.add_argument('--bs',default=32, type=int,help='Batch size')
+
+parser.add_argument('--epochs', default=10, type = int, help='Specify the epochs to train')
 parser.add_argument('--shuffle', help='shuffle or not', type=str2bool, default =True)
 parser.add_argument('--id_gpu', default=2, type=int, help='which gpu to use.')
 parser.add_argument('--Aug', type=str2bool, help='Do Augmentaion to balance the dataset or not', default=False)
 parser.add_argument('--strategy', type=str ,default='one_hot', help='labeling strategy to use',choices=['baseline','one_hot','reg'])
-parser.add_argument('--restore_aug_data', type=str2bool, help='restore augmented data or not', default=False)
 parser.add_argument('--augmented_folder', help='Location of the augmeneted data', type=str, default='/home/batool/beam_selection/baseline_code_modified/aug_data/')
 
 
