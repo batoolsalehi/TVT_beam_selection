@@ -268,6 +268,7 @@ if 'img' in args.input:
 
     if args.Aug:
         try:
+            print('****************Load augmented data****************')
             #train
             X_img_train = open_npz(args.augmented_folder+'image_input/img_input_train_20.npz','train')
             y_train = open_npz(args.augmented_folder+'beam_output/beams_output_train.npz','train')
@@ -277,7 +278,6 @@ if 'img' in args.input:
             y_validation = open_npz(args.augmented_folder+'beam_output/beams_output_validation.npz','val')
 
         except:
-
             print('****************Augment Image****************')
             y_train, X_img_train = balance_data(Initial_labels_train,X_img_train,0.001,(48, 81, 1))
             y_validation, X_img_validation = balance_data(Initial_labels_val,X_img_validation,0.001,(48, 81, 1))
@@ -303,39 +303,32 @@ if 'lidar' in args.input:
             X_lidar_validation = open_npz(args.augmented_folder+'lidar_input/lidar_validation.npz','val')
             y_validation = open_npz(args.augmented_folder+'beam_output/beams_output_validation.npz','val')
         except:
-
             print('****************Augment Lidar****************')
             y_train, X_lidar_train = balance_data(Initial_labels_train,X_lidar_train,0.001,(20, 200, 10))
             y_validation, X_lidar_validation = balance_data(Initial_labels_val,X_lidar_validation,0.001,(20, 200, 10))
-            print('saving input')
-            save_npz(args.augmented_folder+'lidar_input/','ilidar_train.npz',X_lidar_train,'lidar_validation.npz',X_lidar_validation)
-            print('saving Outputs')
+            save_npz(args.augmented_folder+'lidar_input/','lidar_train.npz',X_lidar_train,'lidar_validation.npz',X_lidar_validation)
             save_npz(args.augmented_folder+'beam_output/','beams_output_train.npz',y_train,'beams_output_validation.npz',y_validation)
 
 ##############################################################################
 # Model configuration
 ##############################################################################
-
 #multimodal
 multimodal = False if len(args.input) == 1 else len(args.input)
 
-num_epochs = args.epochs
-batch_size = 32
 validationFraction = 0.2 #from 0 to 1
 modelHand = ModelHandler()
 opt = Adam(lr=args.lr, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
 #opt= Adam(lr=args.lr)
 
 if 'coord' in args.input:
-    coord_model = modelHand.createArchitecture('coord_mlp',num_classes,coord_train_input_shape[1],'complete')
+    coord_model = modelHand.createArchitecture('coord_mlp',num_classes,coord_train_input_shape[1],'complete',args.strategy)
 if 'img' in args.input:
-   #num_epochs = 5
     if nCh==1:
-        img_model = modelHand.createArchitecture('light_image',num_classes,[img_train_input_shape[1],img_train_input_shape[2],1],'complete')
+        img_model = modelHand.createArchitecture('light_image',num_classes,[img_train_input_shape[1],img_train_input_shape[2],1],'complete',args.strategy)
     else:
-        img_model = modelHand.createArchitecture('light_image',num_classes,[img_train_input_shape[1],img_train_input_shape[2],img_train_input_shape[3]],'complete')
+        img_model = modelHand.createArchitecture('light_image',num_classes,[img_train_input_shape[1],img_train_input_shape[2],img_train_input_shape[3]],'complete',arg.strategy)
 if 'lidar' in args.input:
-    lidar_model = modelHand.createArchitecture('lidar_marcus',num_classes,[lidar_train_input_shape[1],lidar_train_input_shape[2],lidar_train_input_shape[3]],'complete')
+    lidar_model = modelHand.createArchitecture('lidar_marcus',num_classes,[lidar_train_input_shape[1],lidar_train_input_shape[2],lidar_train_input_shape[3]],'complete',args.strategy)
 
 
 if multimodal == 2:
