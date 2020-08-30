@@ -166,7 +166,7 @@ def balance_data(beams,modal,variance,dim):
     return beams, modal
 
 
-def meaure_topk_for_regression(y_true,y_pred):
+def meaure_topk_for_regression(y_true,y_pred,k):
     'Measure top 10 accuracy for regression'
     c = 0
     for i in range(len(y_pred)):
@@ -177,6 +177,7 @@ def meaure_topk_for_regression(y_true,y_pred):
         best = np.argmax(A)
         if best in top_predictions:
              c +=1
+
     return c/len(y_pred)
 
 
