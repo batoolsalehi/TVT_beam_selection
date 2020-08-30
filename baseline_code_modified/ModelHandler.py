@@ -9,7 +9,7 @@ import copy
 class ModelHandler:
 
 
-    def createArchitecture(self,model_type,num_classes,input_shape,chain):
+    def createArchitecture(self,model_type,num_classes,input_shape,chain,strategy):
         '''
         Returns a NN model.
         modelType: a string which defines the structure of the model
@@ -47,17 +47,21 @@ class ModelHandler:
         elif(model_type == 'light_image'):
             input_inc = Input(shape = input_shape)
 
-            tower_1 = Conv2D(8, (3,3), padding='same', activation='relu')(input_inc)
+            tower_1 = Conv2D(8, (2,2), padding='same', activation='relu')(input_inc)
             tower_1 = MaxPooling2D((2,2), strides=(1,1), padding='same')(tower_1)
-            tower_1 = Conv2D(8, (3,3), padding='same', activation='relu')(tower_1)
+            tower_1 = Conv2D(10, (3,3), padding='same', activation='relu')(tower_1)
             tower_1 = MaxPooling2D((2,2), strides=(1,1), padding='same')(tower_1)
-            tower_1 = Conv2D(8, (3,3), padding='same', activation='relu')(tower_1)
+            tower_1 = Conv2D(12, (9,9), padding='same', activation='relu')(tower_1)
             #output = concatenate([tower_1, tower_2, tower_3], axis = 3)
             output = tower_1
 
-            output = Dropout(0.25)(output)
+            #output = Dropout(0.25)(output)
             output = Flatten()(output)
-            out = Dense(num_classes,activation='softmax')(output)
+            out = Dense(512,activation='softmax')(output)
+            if strategy == 'one_hot':
+                out = Dense(num_classes,activation='softmax')(output)
+            elif strategy == 'reg':
+                out = Dense(num_classes)(output)
 
             architecture = Model(inputs = input_inc, outputs = out)
 
@@ -65,17 +69,25 @@ class ModelHandler:
         elif(model_type == 'coord_mlp'):
             #initial 4,16,64
             input_coord = Input(shape = (input_shape,))
-            layer = Dense(64,activation='relu')(input_coord)
+            #Model 1
+            # layer = Dense(64,activation='relu')(input_coord)
+            # layer = Dense(16,activation='relu')(layer)
+            # layer = Dense(4,activation='relu')(layer)
+            #Model 2
+            layer = Dense(128,activation='relu')(input_coord)
+            layer = Dense(64,activation='relu')(layer)
             layer = Dense(16,activation='relu')(layer)
+            layer = Dense(32,activation='relu')(layer)
             layer = Dense(4,activation='relu')(layer)
-
-            out = Dense(num_classes,activation='softmax')(layer)
+            if strategy == 'one_hot':
+                out = Dense(num_classes,activation='softmax')(layer)
+            elif strategy == 'reg':
+                out = Dense(num_classes)(layer)
 
             architecture = Model(inputs = input_coord, outputs = out)
 
         elif(model_type == 'lidar_marcus'):
             dropProb=0.3
-            print("We are here")
             print("input_shape",input_shape)
             input_lid = Input(shape = input_shape)
 
@@ -94,7 +106,10 @@ class ModelHandler:
             layer = Conv2D(10, (3, 3), padding="SAME", activation='relu')(layer)
             layer = Conv2D(1, (1, 1), padding="SAME", activation='relu')(layer)
             layer = Flatten()(layer)
-            out = Dense(num_classes,activation='softmax')(layer)
+            if strategy == 'one_hot':
+                out = Dense(num_classes,activation='softmax')(layer)
+            elif strategy == 'reg':
+                out = Dense(num_classes)(layer)
 
             architecture = Model(inputs = input_lid, outputs = out)
 
