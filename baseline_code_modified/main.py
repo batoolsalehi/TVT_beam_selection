@@ -343,7 +343,7 @@ if multimodal == 2:
                             top_50_accuracy])
         model.summary()
         hist = model.fit([X_coord_train,X_lidar_train],y_train,
-        validation_data=([X_coord_validation, X_lidar_validation], y_validation),epochs=num_epochs,batch_size=batch_size)
+        validation_data=([X_coord_validation, X_lidar_validation], y_validation),epochs=args.epochs,batch_size=args.bs)
 
     elif 'coord' in args.input and 'img' in args.input:
         combined_model = concatenate([coord_model.output,img_model.output])
@@ -356,7 +356,7 @@ if multimodal == 2:
                             top_50_accuracy])
         model.summary()
         hist = model.fit([X_coord_train,X_img_train],y_train,
-        validation_data=([X_coord_validation, X_img_validation], y_validation), epochs=num_epochs,batch_size=batch_size)
+        validation_data=([X_coord_validation, X_img_validation], y_validation), epochs=args.epochs,batch_size=args.bs)
 
 
     else:
@@ -370,7 +370,7 @@ if multimodal == 2:
                             top_50_accuracy])
         model.summary()
         hist = model.fit([X_lidar_train,X_img_train],y_train,
-        validation_data=([X_lidar_validation, X_img_validation], y_validation), epochs=num_epochs,batch_size=batch_size)
+        validation_data=([X_lidar_validation, X_img_validation], y_validation), epochs=args.epochs,batch_size=args.bs)
 elif multimodal == 3:
     combined_model = concatenate([lidar_model.output,img_model.output, coord_model.output])
     z = Dense(num_classes,activation="relu")(combined_model)
