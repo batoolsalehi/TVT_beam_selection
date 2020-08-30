@@ -384,7 +384,7 @@ elif multimodal == 3:
     model.summary()
     hist = model.fit([X_lidar_train,X_img_train,X_coord_train],y_train,
             validation_data=([X_lidar_validation, X_img_validation, X_coord_validation], y_validation),
-            epochs=num_epochs,batch_size=batch_size)
+            epochs=args.epochs,batch_size=args.bs)
 
 else:
     if 'coord' in args.input:
