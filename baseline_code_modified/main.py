@@ -388,6 +388,177 @@ elif multimodal == 3:
 
 else:
     if 'coord' in args.input:
+
+        if args.strategy == 'reg':
+            model = coord_model
+            model.compile(loss="mse",optimizer=opt,metrics=[top_2_accuracy,top_10_accuracy,top_50_accuracy])
+            model.summary()
+
+            hist = model.fit(X_coord_train,y_train,
+            epochs=args.epochs, batch_size=args.bs, shuffle=args.shuffle)
+            print('losses', hist.history['loss'])
+
+            print('*****************Testing***********************')
+            scores = model.evaluate(X_coord_validation, y_validation)
+            print(model.metrics_names,scores)
+
+            print('*****************Manual measuring, its same as using top_2_accuracy***********************')
+            preds = model.predict(X_coord_validation)
+            top_10_coord = meaure_topk_for_regression(y_validation,preds,10)
+            print('top 10 accuracy for coord is:',top_10_coord)
+
+
+        if args.strategy == 'one_hot':
+            model = coord_model
+            model.compile(loss=categorical_crossentropy,
+                                optimizer=opt,
+                                metrics=[metrics.categorical_accuracy,
+                                        top_2_accuracy, top_10_accuracy,
+                                        top_50_accuracy])
+            model.summary()
+            hist = model.fit(X_coord_train,y_train,
+            epochs=args.epochs,batch_size=args.bs, shuffle=args.shuffle)
+
+            print(hist.history.keys())
+            print('categorical_accuracy', hist.history['categorical_accuracy'])
+            print('top_2_accuracy',hist.history['top_2_accuracy'])
+            print('top_10_accuracy', hist.history['top_10_accuracy'])
+
+            print('***************Testing model************')
+            scores = model.evaluate(X_coord_validation, y_validation)
+            print(model.metrics_names,scores)
+
+
+    elif 'img' in args.input:
+
+        print('********************Normalize image********************')
+        X_img_train = X_img_train.astype('float32') / 255
+        X_img_validation = X_img_validation.astype('float32') / 255
+
+        if args.strategy == 'reg':
+            model = img_model
+            model.compile(loss="mse",optimizer=opt,metrics=[top_2_accuracy,top_10_accuracy,top_50_accuracy])
+            model.summary()
+
+            hist = model.fit(X_img_train,y_train,
+            epochs=args.epochs, batch_size=args.bs, shuffle=args.shuffle)
+            print('losses', hist.history['loss'])
+
+            print('*****************Testing***********************')
+            scores = model.evaluate(X_img_validation, y_validation)
+            print(model.metrics_names,scores)
+
+
+            print('*****************Manual measuring, its same as using top_2_accuracy***********************')
+            preds = model.predict(X_img_validation)
+            top_10_img = meaure_topk_for_regression(y_validation,preds,10)
+            print('top 10 accuracy for image is:',top_10_img)
+
+        if args.strategy == 'one_hot':
+            model = img_model
+            model.compile(loss=categorical_crossentropy,
+                                optimizer=opt,
+                                metrics=[metrics.categorical_accuracy,
+                                        top_2_accuracy, top_10_accuracy,
+                                        top_50_accuracy])
+            model.summary()
+            hist = model.fit(X_img_train,y_train,
+            epochs=args.epochs,batch_size=args.bs, shuffle=args.shuffle)
+
+            print(hist.history.keys())
+            print('categorical_accuracy', hist.history['categorical_accuracy'])
+            print('top_2_accuracy',hist.history['top_2_accuracy'])
+            print('top_10_accuracy', hist.history['top_10_accuracy'])
+
+            print('***************Testing model************')
+            scores = model.evaluate(X_img_validation, y_validation)
+            print(model.metrics_names,scores)
+
+
+
+    else:
+
+        if args.strategy == 'reg':
+            model = lidar_model
+            model.compile(loss="mse",optimizer=opt,metrics=[top_2_accuracy,top_10_accuracy,top_50_accuracy])
+            model.summary()
+
+            hist = model.fit(X_lidar_train,y_train,
+            epochs=args.epochs, batch_size=args.bs, shuffle=args.shuffle)
+            print('losses', hist.history['loss'])
+
+            print('*****************Testing***********************')
+            scores = model.evaluate(X_lidar_validation, y_validation)
+            print(model.metrics_names,scores)
+
+            print('*****************Manual measuring, its same as using top_2_accuracy***********************')
+            preds = model.predict(X_lidar_validation)
+            top_10_lidar = meaure_topk_for_regression(y_validation,preds,10)
+            print('top 10 accuracy for lidar is:',top_10_lidar)
+
+
+        if args.strategy == 'one_hot':
+            model = lidar_model
+            model.compile(loss=categorical_crossentropy,
+                                optimizer=opt,
+                                metrics=[metrics.categorical_accuracy,
+                                        top_2_accuracy, top_10_accuracy,
+                                        top_50_accuracy])
+            model.summary()
+            hist = model.fit(X_lidar_train,y_train,
+            epochs=args.epochs,batch_size=args.bs, shuffle=args.shuffle)
+
+            print(hist.history.keys())
+            print('categorical_accuracy', hist.history['categorical_accuracy'])
+            print('top_2_accuracy',hist.history['top_2_accuracy'])
+            print('top_10_accuracy', hist.history['top_10_accuracy'])
+
+            print('***************Testing model************')
+            scores = model.evaluate(X_lidar_validation, y_validation)
+            print(model.metrics_names,scores)
+
+
+
+        # K fold
+        # input_train = X_coord_train
+        # input_test = X_coord_validation
+        # target_train = y_train
+        # target_test = y_validation
+
+        # model = coord_model
+        # acc_per_fold = []
+        # loss_per_fold = []
+        # inputs = np.concatenate((input_train, input_test), axis=0)
+        # targets = np.concatenate((target_train, target_test), axis=0)
+        # # Define the K-fold Cross Validator
+        # num_folds = 10
+        # kfold = KFold(n_splits=num_folds, shuffle=True)
+
+        # # K-fold Cross Validation model evaluation
+        # fold_no = 1
+        # for train, test in kfold.split(inputs, targets):
+
+        #     model.compile(loss=categorical_crossentropy,
+        #                     optimizer=opt,
+        #                     metrics=[metrics.categorical_accuracy,
+        #                             metrics.top_k_categorical_accuracy, top_10_accuracy,
+        #                             top_50_accuracy])
+        #     history = model.fit(inputs[train], targets[train],
+        #       batch_size=args.bs,
+        #       epochs=10,
+        #       verbose=1)
+        #       # Generate generalization metrics
+        #     scores = model.evaluate(inputs[test], targets[test], verbose=0)
+        #     print(scores)
+        #     acc_per_fold.append(scores[1] * 100)
+        #     loss_per_fold.append(scores[0])
+
+        #     fold_no = fold_no + 1
+
+
+
+
+"""
         model = coord_model
         model.compile(loss=categorical_crossentropy,
                             optimizer=opt,
@@ -395,51 +566,61 @@ else:
                                     top_2_accuracy, top_10_accuracy,
                                     top_50_accuracy])
         model.summary()
-        b,c = balance_data(y_train,X_coord_train)
-        X_coord_train = c
-        y_train = b
-
-        randperm = np.random.permutation(len(X_coord_train))
-        y_train = y_train[randperm]
-        X_coord_train = X_coord_train[randperm]
 
         hist = model.fit(X_coord_train,y_train,
-        #validation_data=(X_coord_validation, y_validation),
-        epochs=num_epochs,batch_size=batch_size, shuffle=args.shuffle)
+        validation_data=(X_coord_validation, y_validation),
+        epochs=args.epochs,batch_size=args.bs, shuffle=args.shuffle)
+
+
+
+        # model = coord_model
+        # model.compile(loss= mean_squared_error,
+        #                     optimizer=opt,
+        #                     metrics=[metrics.MSE])
+        # model.summary()
+
+        # hist = model.fit(X_coord_train,y_train,
+        # validation_data=(X_coord_validation, y_validation),
+        # epochs=args.epochs,batch_size=args.bs, shuffle=args.shuffle)
+        # print(hist.history[MeanSquaredError])
+
+
+        # print(hist.history.keys())
+        # print('categorical_accuracy', hist.history['categorical_accuracy'])
+        # print('top_2_accuracy',hist.history['top_2_accuracy'])
+        # print('top_10_accuracy', hist.history['top_10_accuracy'])
+        # print('val_categorical_accuracy',hist.history['val_categorical_accuracy'])
+        # print('val_top_2_accuracy',hist.history['val_top_2_accuracy'])
+        # print('val_top_10_accuracy',hist.history['val_top_10_accuracy'])
+
         prediction = model.predict(X_coord_train)
+        print('prediction',prediction[0])
 
 
         # for i in prediction:
         #     print(np.where(i==max(i)))
 
-
-    elif 'img' in args.input:
-        model = img_model
-        model.compile(loss=categorical_crossentropy,
-                    optimizer=opt,
-                    metrics=[metrics.categorical_accuracy,
-                            metrics.top_k_categorical_accuracy, top_10_accuracy,
-                            top_50_accuracy])
-        model.summary()
-        hist = model.fit(X_img_train,y_train,
-        validation_data=(X_img_validation, y_validation),epochs=num_epochs,batch_size=batch_size)
-        prediction = model.predict(X_img_validation)
-        for i in prediction:
-            max_index = i.argsort()[-1:][::-1]
-            print(max_index)
-
-    else:
-        model = lidar_model
-        model.compile(loss=categorical_crossentropy,
-                    optimizer=opt,
-                    metrics=[metrics.categorical_accuracy,
-                            metrics.top_k_categorical_accuracy, top_10_accuracy,
-                            top_50_accuracy])
-        model.summary()
-        hist = model.fit(X_lidar_train,y_train,
-        validation_data=(X_lidar_validation, y_validation),epochs=num_epochs,batch_size=batch_size)
+"""
 
 
+"""
+            # print(preds[0])
+            # #### Method 1
+            # c = 0
+            # for i in range(len(preds)):
+            #     # shape of each elemnt is (256,)
+            #     A = y_validation[i]
+            #     B = preds[i]
+            #     top_predictions = B.argsort()[-10:][::-1]
+            #     best = np.argmax(A)
+            #     # print(top_predictions)
+            #     if best in top_predictions:
+            #         c +=1
+            # print(best,top_predictions)
+            # print(c,len(preds),c/len(preds))
 
+            # ###3Method 2 , both have the same output
+            # m = metrics.top_k_categorical_accuracy(y_validation,preds,k=10)
+            # with tf.Session() as sess: print(m.eval())
 
-
+"""
