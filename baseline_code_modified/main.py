@@ -260,9 +260,7 @@ if 'img' in args.input:
             print('****************Augment Image****************')
             y_train, X_img_train = balance_data(Initial_labels_train,X_img_train,0.001,(48, 81, 1))
             y_validation, X_img_validation = balance_data(Initial_labels_val,X_img_validation,0.001,(48, 81, 1))
-            print('saving input')
             save_npz(args.augmented_folder+'image_input/','img_input_train_20.npz',X_img_train,'img_input_validation_20.npz',X_img_validation)
-            print('saving Outputs')
             save_npz(args.augmented_folder+'beam_output/','beams_output_train.npz',y_train,'beams_output_validation.npz',y_validation)
 
 if 'lidar' in args.input:
