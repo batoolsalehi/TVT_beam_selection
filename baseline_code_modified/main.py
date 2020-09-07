@@ -416,22 +416,19 @@ else:
 
         if args.strategy == 'reg':
             model = img_model
-            model.compile(loss="mse",optimizer=opt,metrics=[top_2_accuracy,top_10_accuracy,top_50_accuracy])
+            model.compile(loss="mse",optimizer=opt,metrics=[top_1_accuracy,top_2_accuracy,top_10_accuracy,top_50_accuracy,R2_metric])
             model.summary()
 
             hist = model.fit(X_img_train,y_train,
             epochs=args.epochs, batch_size=args.bs, shuffle=args.shuffle)
-            print('losses', hist.history['loss'])
+            print('losses in train:', hist.history['loss'])
 
             print('*****************Testing***********************')
             scores = model.evaluate(X_img_validation, y_validation)
-            print(model.metrics_names,scores)
+            print('scores while testing:',model.metrics_names,scores)
 
-
-            print('*****************Manual measuring, its same as using top_2_accuracy***********************')
-            preds = model.predict(X_img_validation)
-            top_10_img = meaure_topk_for_regression(y_validation,preds,10)
-            print('top 10 accuracy for image is:',top_10_img)
+            print('*****************Seperate statics***********************')
+            seperate_metric_in_out_train(model,X_img_train,y_train,X_img_validation, y_validation)
 
         if args.strategy == 'one_hot':
             model = img_model
@@ -444,16 +441,15 @@ else:
             hist = model.fit(X_img_train,y_train,
             epochs=args.epochs,batch_size=args.bs, shuffle=args.shuffle)
 
-            print(hist.history.keys())
-            print('categorical_accuracy', hist.history['categorical_accuracy'])
-            print('top_2_accuracy',hist.history['top_2_accuracy'])
-            print('top_10_accuracy', hist.history['top_10_accuracy'])
+            # print(hist.history.keys())
+            print('categorical_accuracy', hist.history['categorical_accuracy'],'top_2_accuracy',hist.history['top_2_accuracy'],'top_10_accuracy', hist.history['top_10_accuracy'])
 
             print('***************Testing model************')
             scores = model.evaluate(X_img_validation, y_validation)
-            print(model.metrics_names,scores)
+            print('scores while testing:',model.metrics_names,scores)
 
-
+            print('*****************Seperate statics***********************')
+            seperate_metric_in_out_train(model,X_img_train,y_train,X_img_validation, y_validation)
 
     else:
 
