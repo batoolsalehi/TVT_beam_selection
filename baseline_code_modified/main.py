@@ -56,14 +56,6 @@ def save_npz(path,train_name,train_data,val_name,val_data):
     np.savez_compressed(path+train_name, train=train_data)
     np.savez_compressed(path+val_name, val=val_data)
 
-def top_2_accuracy(y_true,y_pred):
-    return metrics.top_k_categorical_accuracy(y_true,y_pred,k=2)
-
-def top_10_accuracy(y_true,y_pred):
-    return metrics.top_k_categorical_accuracy(y_true,y_pred,k=10)
-
-def top_50_accuracy(y_true,y_pred):
-    return metrics.top_k_categorical_accuracy(y_true,y_pred,k=50)
 
 def beamsLogScale(y,thresholdBelowMax):
         y_shape = y.shape   # shape is (#,256)
@@ -115,6 +107,7 @@ def custom_label(output_file, strategy='one_hot' ):
         k = 1           # For one hot encoding we need the best one
         for i in range(0,y_shape[0]):
             thisOutputs = y[i,:]
+            #The shape of this output is (256,)
             logOut = 20*np.log10(thisOutputs)
             max_index = logOut.argsort()[-k:][::-1]
             y[i,:] = 0
@@ -166,21 +159,6 @@ def balance_data(beams,modal,variance,dim):
         modal = np.concatenate((modal, ADD_modal), axis=0)
 
     return beams, modal
-
-
-def meaure_topk_for_regression(y_true,y_pred,k):
-    'Measure top 10 accuracy for regression'
-    c = 0
-    for i in range(len(y_pred)):
-        # shape of each elemnt is (256,)
-        A = y_true[i]
-        B = y_pred[i]
-        top_predictions = B.argsort()[-10:][::-1]
-        best = np.argmax(A)
-        if best in top_predictions:
-             c +=1
-
-    return c/len(y_pred)
 
 
 
