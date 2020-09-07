@@ -18,6 +18,8 @@ import random
 import os
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import RobustScaler
+from keras import backend as K
+from custom_metrics import *
 ############################
 # Fix the seed
 ############################
