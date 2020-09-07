@@ -192,18 +192,14 @@ if args.id_gpu >= 0:
 output_train_file = args.data_folder+'beam_output/beams_output_train.npz'
 output_validation_file = args.data_folder+'beam_output/beams_output_validation.npz'
 
-if args.strategy == 'one_hot':
-    y_train,num_classes = custom_label(output_train_file,'one_hot')
-    y_validation, _  = custom_label(output_validation_file,'one_hot')
-elif args.strategy == 'default':
+if args.strategy == 'default':
     y_train,num_classes = getBeamOutput(output_train_file)
     y_validation, _ = getBeamOutput(output_validation_file)
-elif args.strategy == 'reg':
-    y_train,num_classes = custom_label(output_train_file,'reg')
-    y_validation, _ = custom_label(output_validation_file,'reg')
+elif args.strategy == 'one_hot' or args.strategy == 'reg':
+    y_train,num_classes = custom_label(output_train_file,args.strategy)
+    y_validation, _ = custom_label(output_validation_file,args.strategy)
 else:
     print('invalid labeling strategy')
-
 
 ###############################################################################
 # Inputs
