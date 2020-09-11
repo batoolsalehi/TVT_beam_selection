@@ -6,7 +6,7 @@ from tensorflow.keras import metrics
 from tensorflow.keras.models import model_from_json,Model
 from tensorflow.keras.layers import Dense,concatenate
 from tensorflow.keras.losses import categorical_crossentropy
-from tensorflow.losses import mean_squared_error
+from tensorflow.keras.losses import mean_squared_error
 from tensorflow.keras.optimizers import Adadelta,Adam, SGD
 from sklearn.model_selection import train_test_split
 from ModelHandler import ModelHandler
@@ -25,7 +25,8 @@ from custom_metrics import *
 ############################
 seed = 0
 os.environ['PYTHONHASHSEED']=str(seed)
-tf.set_random_seed(seed)
+#tf.set_random_seed(seed)
+tf.random.set_seed(seed)
 np.random.seed(seed)
 random.seed(seed)
 
@@ -421,7 +422,9 @@ else:
 
             hist = model.fit(X_img_train,y_train,
             epochs=args.epochs, batch_size=args.bs, shuffle=args.shuffle)
-            print('losses in train:', hist.history['loss'])
+            print('categorical_accuracy',hist.history['categorical_accuracy'],
+                  'top_2_accuracy',hist.history['top_2_accuracy'],
+                  'top_10_accuracy', hist.history['top_10_accuracy'])
 
             print('*****************Testing***********************')
             scores = model.evaluate(X_img_validation, y_validation)
@@ -434,19 +437,26 @@ else:
             model = img_model
             model.compile(loss=categorical_crossentropy,
                                 optimizer=opt,
-                                metrics=[metrics.categorical_accuracy,
-                                        top_2_accuracy, top_10_accuracy,
-                                        top_50_accuracy])
+                                metrics=[metrics.categorical_accuracy,top_2_accuracy, top_10_accuracy,top_50_accuracy,R2_metric])
             model.summary()
-            hist = model.fit(X_img_train,y_train,
-            epochs=args.epochs,batch_size=args.bs, shuffle=args.shuffle)
+            hist = model.fit(X_img_train,y_train, 
+                             epochs=args.epochs,
+                             batch_size=args.bs, 
+                             shuffle=args.shuffle,
+                             validation_data=(X_img_validation, y_validation))
 
             # print(hist.history.keys())
-            print('categorical_accuracy', hist.history['categorical_accuracy'],'top_2_accuracy',hist.history['top_2_accuracy'],'top_10_accuracy', hist.history['top_10_accuracy'])
-
-            print('***************Testing model************')
-            scores = model.evaluate(X_img_validation, y_validation)
-            print('scores while testing:',model.metrics_names,scores)
+            print('top1=', hist.history['categorical_accuracy'],
+                  'top2=',hist.history['top_2_accuracy'],
+                  'top10=', hist.history['top_10_accuracy'])
+            
+            print('val_top1=', hist.history['val_categorical_accuracy'],
+                  'val_top2=',hist.history['val_top_2_accuracy'],
+                  'val_top10=', hist.history['val_top_10_accuracy'])
+            
+            #print('***************Testing model************')
+            #scores = model.evaluate(X_img_validation, y_validation)
+            #print('scores while testing:',model.metrics_names,scores)
 
             print('*****************Seperate statics***********************')
             seperate_metric_in_out_train(model,X_img_train,y_train,X_img_validation, y_validation)
@@ -457,13 +467,18 @@ else:
             model.compile(loss="mse",optimizer=opt,metrics=[top_1_accuracy,top_2_accuracy,top_10_accuracy,top_50_accuracy,R2_metric])
             model.summary()
 
-            hist = model.fit(X_lidar_train,y_train,
-            epochs=args.epochs, batch_size=args.bs, shuffle=args.shuffle)
-            print('losses in train', hist.history['loss'])
-
-            print('*****************Testing***********************')
-            scores = model.evaluate(X_lidar_validation, y_validation)
-            print('scores while testing:',model.metrics_names,scores)
+            hist = model.fit(X_lidar_train,y_train, 
+                             epochs=args.epochs,
+                             batch_size=args.bs, 
+                             shuffle=args.shuffle,
+                             validation_data=(X_lidar_validation, y_validation))
+            print('top1=', hist.history['categorical_accuracy'],
+                  'top2=',hist.history['top_2_accuracy'],
+                  'top10=', hist.history['top_10_accuracy'])
+            
+            print('val_top1=', hist.history['val_categorical_accuracy'],
+                  'val_top2=',hist.history['val_top_2_accuracy'],
+                  'val_top10=', hist.history['val_top_10_accuracy'])
 
             print('*****************Seperate statics***********************')
             seperate_metric_in_out_train(model,X_lidar_train,y_train,X_lidar_validation, y_validation)
@@ -476,15 +491,19 @@ else:
                                         top_2_accuracy, top_10_accuracy,
                                         top_50_accuracy])
             model.summary()
-            hist = model.fit(X_lidar_train,y_train,
-            epochs=args.epochs,batch_size=args.bs, shuffle=args.shuffle)
+            hist = model.fit(X_lidar_train,y_train, 
+                             epochs=args.epochs,
+                             batch_size=args.bs, 
+                             shuffle=args.shuffle,
+                             validation_data=(X_lidar_validation, y_validation))
 
-            # print(hist.history.keys())
-            print('categorical_accuracy', hist.history['categorical_accuracy'],'top_2_accuracy',hist.history['top_2_accuracy'],'top_10_accuracy', hist.history['top_10_accuracy'])
-
-            print('***************Testing model************')
-            scores = model.evaluate(X_lidar_validation, y_validation)
-            print('scores while testing:',model.metrics_names,scores)
+            print('categorical_accuracy', hist.history['categorical_accuracy'],
+                  'top_2_accuracy',hist.history['top_2_accuracy'],
+                  'top_10_accuracy', hist.history['top_10_accuracy'])
+            
+            print('val_categorical_accuracy', hist.history['val_categorical_accuracy'],
+                  'val_top_2_accuracy',hist.history['val_top_2_accuracy'],
+                  'val_top_10_accuracy', hist.history['val_top_10_accuracy'])
 
             print('*****************Seperate statics***********************')
             seperate_metric_in_out_train(model,X_lidar_train,y_train,X_lidar_validation, y_validation)
