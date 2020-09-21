@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import metrics
 from keras import backend as K
-
+import numpy as np
 
 
 def top_1_accuracy(y_true,y_pred):
@@ -40,7 +40,8 @@ def R2_metric(y_true, y_pred):
 
 def seperate_metric_in_out_train(model,x_train,y_train_true,x_test, y_test_true):
     """There are some classes which are not included in the validation set.
-    This function evalutes the performance of in-train and not-in-train classes """
+    This function evalutes the performance of in-train and not-in-train classes
+    + It shows the apperance of diffrent classes in our predictions"""
 
     y_train_pred = model.predict(x_train)
     y_test_pred = model.predict(x_test)
@@ -80,6 +81,18 @@ def seperate_metric_in_out_train(model,x_train,y_train_true,x_test, y_test_true)
                 not_in_train_wrong+=1
     print('{} samples of test set are in training set, {} correctly predicted,{} wrongly predicted'.format(in_train,in_train_correct,in_train_wrong))
     print('{} samples of test set are not in training set,{} correctly predicted,{} wrongly predicted'.format(not_in_train,not_in_train_correct,not_in_train_wrong))
+
+    print('*************Count apperance of classes in our prediction*************')
+    max_true = y_test_true.argmax(axis=1)
+    max_pred = y_test_pred.argmax(axis=1)
+
+    print(max_true.shape,max_pred.shape)
+    Occurrence_true = {i:len(np.where(max_true==i)[0]) for i in np.unique(max_true)}
+    Occurrence_pred = {i:len(np.where(max_pred==i)[0]) for i in np.unique(max_pred)}
+    print('Occurrence_true_labels',Occurrence_true)
+    print('Occurrence_pred_labels',Occurrence_pred)
+
+
 
 
 
