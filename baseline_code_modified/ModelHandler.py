@@ -51,7 +51,7 @@ class ModelHandler:
         elif(model_type == 'coord_mlp'):
             #initial 4,16,64
             print(input_shape)
-            input_coord = Input(shape = (input_shape,1))
+
             #Model 1
             # layer = Dense(64,activation='relu')(input_coord)
             # layer = Dense(16,activation='relu')(layer)
@@ -76,15 +76,15 @@ class ModelHandler:
             # layer = Conv1D(10, 2, padding="SAME", activation='relu')(layer)
             # layer = MaxPooling1D(pool_size=2,padding="same")(layer)
 
-            # layer = Conv1D(20, 2, padding="SAME", activation='relu')(input_coord)
+            # layer = Conv1D(20, 2, padding="SAME", activation='relu')(layer)
             # layer = Conv1D(10, 2, padding="SAME", activation='relu')(layer)
             # layer = MaxPooling1D(pool_size=2, padding="same")(layer)
 
-            # layer = Conv1D(20, 2, padding="SAME", activation='relu')(input_coord)
+            # layer = Conv1D(20, 2, padding="SAME", activation='relu')(layer)
             # layer = Conv1D(10, 2, padding="SAME", activation='relu')(layer)
             # layer = MaxPooling1D(pool_size=2,padding="same")(layer)
 
-            # layer = Conv1D(20, 2, padding="SAME", activation='relu')(input_coord)
+            # layer = Conv1D(20, 2, padding="SAME", activation='relu')(layer)
             # layer = Conv1D(10, 2, padding="SAME", activation='relu')(layer)
             # layer = MaxPooling1D(pool_size=2,padding="same")(layer)
 
@@ -100,9 +100,9 @@ class ModelHandler:
             architecture = Model(inputs = input_coord, outputs = out)
 
         elif(model_type == 'lidar_marcus'):
-            
-            
+
+
             architecture = Models.Baseline(input_shape, num_classes, strategy)
 
         return architecture
-    
+
