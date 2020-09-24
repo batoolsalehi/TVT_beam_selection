@@ -176,6 +176,7 @@ parser.add_argument('--id_gpu', default=2, type=int, help='which gpu to use.')
 parser.add_argument('--Aug', type=str2bool, help='Do Augmentaion to balance the dataset or not', default=False)
 parser.add_argument('--strategy', type=str ,default='one_hot', help='labeling strategy to use',choices=['baseline','one_hot','reg'])
 parser.add_argument('--augmented_folder', help='Location of the augmeneted data', type=str, default='/home/batool/beam_selection/baseline_code_modified/aug_data/')
+parser.add_argument('--weight_classes', help='Weight loss of each class based on the inverse of their representation', type=str2bool, default =False)
 
 
 args = parser.parse_args()
