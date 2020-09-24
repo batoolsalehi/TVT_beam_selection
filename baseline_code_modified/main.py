@@ -176,7 +176,7 @@ parser.add_argument('--id_gpu', default=2, type=int, help='which gpu to use.')
 parser.add_argument('--Aug', type=str2bool, help='Do Augmentaion to balance the dataset or not', default=False)
 parser.add_argument('--strategy', type=str ,default='one_hot', help='labeling strategy to use',choices=['baseline','one_hot','reg'])
 parser.add_argument('--augmented_folder', help='Location of the augmeneted data', type=str, default='/home/batool/beam_selection/baseline_code_modified/aug_data/')
-parser.add_argument('--weight_classes', help='Weight loss of each class based on the inverse of their representation', type=str2bool, default =False)
+parser.add_argument('--weight_classes', help='Weight loss of each class based on the inverse of their representation', type=str2bool, default =True)
 
 
 args = parser.parse_args()
@@ -395,18 +395,37 @@ else:
                                         top_2_accuracy, top_10_accuracy,
                                         top_50_accuracy])
             model.summary()
-            hist = model.fit(X_coord_train,y_train,
-            epochs=args.epochs,batch_size=args.bs, shuffle=args.shuffle)
 
-            #print(hist.history.keys())
-            print('categorical_accuracy', hist.history['categorical_accuracy'],'top_2_accuracy',hist.history['top_2_accuracy'],'top_10_accuracy', hist.history['top_10_accuracy'])
+            if args.weight_classes:
+                cw = np.sum(y_train, axis=0) / np.sum(y_train)
+                cw = {i: cw[i] for i in np.arange(len(cw))}
+                hist = model.fit(X_coord_train, y_train,
+                                 epochs=args.epochs,
+                                 batch_size=args.bs,
+                                 shuffle=args.shuffle,
+                                 class_weight=cw,
+                                 validation_data=(X_coord_validation, y_validation))
+            else:
+                hist = model.fit(X_coord_train, y_train,
+                                 epochs=args.epochs,
+                                 batch_size=args.bs,
+                                 shuffle=args.shuffle,
+                                 validation_data=(X_coord_validation, y_validation))
+
+            # print(hist.history.keys())
+            print('categorical_accuracy', hist.history['categorical_accuracy'], 'top_2_accuracy',
+                  hist.history['top_2_accuracy'], 'top_10_accuracy', hist.history['top_10_accuracy'])
+
+            print('val_top1=', hist.history['val_categorical_accuracy'],
+                  'val_top2=', hist.history['val_top_2_accuracy'],
+                  'val_top10=', hist.history['val_top_10_accuracy'])
 
             print('***************Testing model************')
             scores = model.evaluate(X_coord_validation, y_validation)
-            print(model.metrics_names,scores)
+            print(model.metrics_names, scores)
 
             print('*****************Seperate statics***********************')
-            seperate_metric_in_out_train(model,X_coord_train,y_train,X_coord_validation, y_validation)
+            seperate_metric_in_out_train(model, X_coord_train, y_train, X_coord_validation, y_validation)
 
 
 
@@ -440,27 +459,38 @@ else:
                                 optimizer=opt,
                                 metrics=[metrics.categorical_accuracy,top_2_accuracy, top_10_accuracy,top_50_accuracy,R2_metric])
             model.summary()
-            hist = model.fit(X_img_train,y_train, 
-                             epochs=args.epochs,
-                             batch_size=args.bs, 
-                             shuffle=args.shuffle,
-                             validation_data=(X_img_validation, y_validation))
+
+            if args.weight_classes:
+                cw = np.sum(y_train, axis=0) / np.sum(y_train)
+                cw = {i: cw[i] for i in np.arange(len(cw))}
+                hist = model.fit(X_img_train, y_train,
+                                 epochs=args.epochs,
+                                 batch_size=args.bs,
+                                 shuffle=args.shuffle,
+                                 class_weight=cw,
+                                 validation_data=(X_img_validation, y_validation))
+            else:
+                hist = model.fit(X_img_train, y_train,
+                                 epochs=args.epochs,
+                                 batch_size=args.bs,
+                                 shuffle=args.shuffle,
+                                 validation_data=(X_img_validation, y_validation))
 
             # print(hist.history.keys())
             print('top1=', hist.history['categorical_accuracy'],
-                  'top2=',hist.history['top_2_accuracy'],
+                  'top2=', hist.history['top_2_accuracy'],
                   'top10=', hist.history['top_10_accuracy'])
-            
+
             print('val_top1=', hist.history['val_categorical_accuracy'],
-                  'val_top2=',hist.history['val_top_2_accuracy'],
+                  'val_top2=', hist.history['val_top_2_accuracy'],
                   'val_top10=', hist.history['val_top_10_accuracy'])
-            
-            #print('***************Testing model************')
-            #scores = model.evaluate(X_img_validation, y_validation)
-            #print('scores while testing:',model.metrics_names,scores)
+
+            # print('***************Testing model************')
+            # scores = model.evaluate(X_img_validation, y_validation)
+            # print('scores while testing:',model.metrics_names,scores)
 
             print('*****************Seperate statics***********************')
-            seperate_metric_in_out_train(model,X_img_train,y_train,X_img_validation, y_validation)
+            seperate_metric_in_out_train(model, X_img_train, y_train, X_img_validation, y_validation)
 
     else:
         if args.strategy == 'reg':
@@ -492,22 +522,33 @@ else:
                                         top_2_accuracy, top_10_accuracy,
                                         top_50_accuracy])
             model.summary()
-            hist = model.fit(X_lidar_train,y_train, 
-                             epochs=args.epochs,
-                             batch_size=args.bs, 
-                             shuffle=args.shuffle,
-                             validation_data=(X_lidar_validation, y_validation))
+
+            if args.weight_classes:
+                cw = np.sum(y_train, axis=0) / np.sum(y_train)
+                cw = {i: cw[i] for i in np.arange(len(cw))}
+                hist = model.fit(X_lidar_train, y_train,
+                                 epochs=args.epochs,
+                                 batch_size=args.bs,
+                                 shuffle=args.shuffle,
+                                 class_weight=cw,
+                                 validation_data=(X_lidar_validation, y_validation))
+            else:
+                hist = model.fit(X_lidar_train, y_train,
+                                 epochs=args.epochs,
+                                 batch_size=args.bs,
+                                 shuffle=args.shuffle,
+                                 validation_data=(X_lidar_validation, y_validation))
 
             print('categorical_accuracy', hist.history['categorical_accuracy'],
-                  'top_2_accuracy',hist.history['top_2_accuracy'],
+                  'top_2_accuracy', hist.history['top_2_accuracy'],
                   'top_10_accuracy', hist.history['top_10_accuracy'])
-            
+
             print('val_categorical_accuracy', hist.history['val_categorical_accuracy'],
-                  'val_top_2_accuracy',hist.history['val_top_2_accuracy'],
+                  'val_top_2_accuracy', hist.history['val_top_2_accuracy'],
                   'val_top_10_accuracy', hist.history['val_top_10_accuracy'])
 
             print('*****************Seperate statics***********************')
-            seperate_metric_in_out_train(model,X_lidar_train,y_train,X_lidar_validation, y_validation)
+            seperate_metric_in_out_train(model, X_lidar_train, y_train, X_lidar_validation, y_validation)
 
 
 
