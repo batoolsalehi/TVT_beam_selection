@@ -101,8 +101,9 @@ class ModelHandler:
 
         elif(model_type == 'lidar_marcus'):
 
-
+            
             architecture = Models.Baseline(input_shape, num_classes, strategy)
+            # architecture = Models.ResLike(input_shape, num_classes, strategy)
 
         return architecture
 
