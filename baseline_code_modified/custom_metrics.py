@@ -92,7 +92,48 @@ def seperate_metric_in_out_train(model,x_train,y_train_true,x_test, y_test_true)
     print('Occurrence_true_labels',Occurrence_true)
     print('Occurrence_pred_labels',Occurrence_pred)
 
+def los_accuracy(model,x,y, los, k):
 
+
+
+    y_pred = model.predict(x)
+
+    # k=5
+    labels = np.asarray([i.argsort()[-1:][::-1] for i in y])
+
+    labels_pred = np.asarray([i.argsort()[-k:][::-1] for i in y_pred])
+
+    mask_los = np.squeeze(los==1)
+    los_pred =  labels_pred[mask_los, :]
+    los_labels = labels[mask_los, :]
+    acc_los = float(np.sum([los_pred[i, :] in los_labels[i] for i in range(np.sum(mask_los))])) / np.sum(mask_los)
+    # acc_los = float(np.sum(labels[mask_los]==labels_pred[mask_los])) / np.sum(mask_los)
+
+    mask_nlos = np.squeeze(los == 0)
+    nlos_pred = labels_pred[mask_nlos, :]
+    nlos_labels = labels[mask_nlos, :]
+    acc_nlos = float(np.sum([nlos_pred[i, :] in nlos_labels[i] for i in range(np.sum(mask_nlos))])) / np.sum(mask_nlos)
+    # acc_nlos = float(np.sum(labels[mask_nlos] == labels_pred[mask_nlos])) / np.sum(mask_nlos)
+
+    print('K = ' + str(k) + ' Accuracy LOS = ' + str(acc_los) + 'Accuracy NLOS=' + str(acc_nlos))
+
+    return acc_los, acc_nlos
+
+# def los_accuracy(model,x_train,y_train_true,x_test, y_test_true):
+#
+#
+#
+#     y_train_pred = model.predict(x_train)
+#     y_test_pred = model.predict(x_test)
+#
+#     k=1    # We consider the best beam
+#     labels_in_train = np.asarray([i.argsort()[-k:][::-1] for i in y_train_true])
+#     labels_in_test = np.asarray([i.argsort()[-k:][::-1] for i in y_test_true])
+#
+#     y_train_pred = np.asarray([i.argsort()[-k:][::-1] for i in y_train_pred])
+#     y_test_pred = np.asarray([i.argsort()[-k:][::-1] for i in y_test_pred])
+#
+#     acc_val_los = label
 
 
 

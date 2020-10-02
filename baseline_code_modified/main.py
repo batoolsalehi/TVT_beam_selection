@@ -16,6 +16,7 @@ from sklearn.model_selection import KFold
 from tqdm import tqdm
 import random
 import os
+from numpy import inf
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import RobustScaler
 from keras import backend as K
@@ -26,7 +27,7 @@ from custom_metrics import *
 seed = 0
 os.environ['PYTHONHASHSEED']=str(seed)
 #tf.set_random_seed(seed)
-tf.random.set_seed(seed)
+# tf.random.set_seed(seed)
 np.random.seed(seed)
 random.seed(seed)
 
@@ -161,7 +162,24 @@ def balance_data(beams,modal,variance,dim):
 
     return beams, modal
 
+def LOS_label(pathToRawCoord):
 
+    los = np.empty([11194, 1], dtype=bool)
+    count = 0
+    with open(pathToRawCoord+'CoordVehiclesRxPerScene_s008.csv') as csvfile:
+        readCSV = csv.reader(csvfile, delimiter=',')
+        for row in readCSV:
+            if row[0] == "V":
+                if row[9] == 'LOS=0':
+                    los[count] = 0
+                else:
+                    los[count] = 1
+                count+=1
+
+    y_los_train = los[:9234]
+    y_los_val = los[9234:]
+
+    return  y_los_train, y_los_val
 
 parser = argparse.ArgumentParser(description='Configure the files before training the net.')
 parser.add_argument('--data_folder', help='Location of the data directory', type=str)
@@ -177,6 +195,8 @@ parser.add_argument('--Aug', type=str2bool, help='Do Augmentaion to balance the 
 parser.add_argument('--strategy', type=str ,default='one_hot', help='labeling strategy to use',choices=['baseline','one_hot','reg'])
 parser.add_argument('--augmented_folder', help='Location of the augmeneted data', type=str, default='/home/batool/beam_selection/baseline_code_modified/aug_data/')
 parser.add_argument('--weight_classes', help='Weight loss of each class based on the inverse of their representation', type=str2bool, default =False)
+parser.add_argument('--rawCoord_folder', help='Location of the raw coordinates data directory', type=str)
+parser.add_argument('--load_los', help='Load LOS/NLOS information from the raw coordinate data', type=str2bool, default =False)
 
 
 args = parser.parse_args()
@@ -203,6 +223,9 @@ elif args.strategy == 'one_hot' or args.strategy == 'reg':
 else:
     print('invalid labeling strategy')
 
+
+if args.load_los:
+    y_los_train, y_los_val = LOS_label(args.rawCoord_folder)
 ###############################################################################
 # Inputs
 ###############################################################################
@@ -397,7 +420,9 @@ else:
             model.summary()
 
             if args.weight_classes:
-                cw = np.sum(y_train, axis=0) / np.sum(y_train)
+                cw = np.sum(y_train) / np.sum(y_train, axis=0)
+                cw[cw == inf] = 0
+                cw = cw / np.sum(cw)
                 cw = {i: cw[i] for i in np.arange(len(cw))}
                 hist = model.fit(X_coord_train, y_train,
                                  epochs=args.epochs,
@@ -426,6 +451,11 @@ else:
 
             print('*****************Seperate statics***********************')
             seperate_metric_in_out_train(model, X_coord_train, y_train, X_coord_validation, y_validation)
+
+            if args.load_los:
+                acc_los, acc_nlos = los_accuracy(model, X_coord_validation, y_validation, y_los_val, 10)
+
+
 
 
 
@@ -461,7 +491,10 @@ else:
             model.summary()
 
             if args.weight_classes:
-                cw = np.sum(y_train, axis=0) / np.sum(y_train)
+                # cw = np.sum(y_train, axis=0) / np.sum(y_train)
+                cw = np.sum(y_train)/ np.sum(y_train, axis=0)
+                cw[cw==inf] = np.sum(y_train)
+                cw= cw/np.sum(cw)
                 cw = {i: cw[i] for i in np.arange(len(cw))}
                 hist = model.fit(X_img_train, y_train,
                                  epochs=args.epochs,
@@ -491,6 +524,9 @@ else:
 
             print('*****************Seperate statics***********************')
             seperate_metric_in_out_train(model, X_img_train, y_train, X_img_validation, y_validation)
+
+            if args.load_los:
+                acc_los, acc_nlos = los_accuracy(model, X_img_validation, y_validation, y_los_val, 10)
 
     else:
         if args.strategy == 'reg':
@@ -524,7 +560,9 @@ else:
             model.summary()
 
             if args.weight_classes:
-                cw = np.sum(y_train, axis=0) / np.sum(y_train)
+                cw = np.sum(y_train) / np.sum(y_train, axis=0)
+                cw[cw == inf] = 0
+                cw = cw / np.sum(cw)
                 cw = {i: cw[i] for i in np.arange(len(cw))}
                 hist = model.fit(X_lidar_train, y_train,
                                  epochs=args.epochs,
@@ -549,6 +587,9 @@ else:
 
             print('*****************Seperate statics***********************')
             seperate_metric_in_out_train(model, X_lidar_train, y_train, X_lidar_validation, y_validation)
+
+            if args.load_los:
+                acc_los, acc_nlos = los_accuracy(model, X_lidar_validation, y_validation, y_los_val, 10)
 
 
 
