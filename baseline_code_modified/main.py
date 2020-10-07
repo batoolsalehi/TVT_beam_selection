@@ -21,6 +21,8 @@ from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import RobustScaler
 from keras import backend as K
 from custom_metrics import *
+# from .beam_selection.baseline_code_modified_debashri.utils.custom_metrics import *
+
 ############################
 # Fix the seed
 ############################
@@ -197,7 +199,7 @@ parser.add_argument('--augmented_folder', help='Location of the augmeneted data'
 parser.add_argument('--weight_classes', help='Weight loss of each class based on the inverse of their representation', type=str2bool, default =False)
 parser.add_argument('--rawCoord_folder', help='Location of the raw coordinates data directory', type=str)
 parser.add_argument('--load_los', help='Load LOS/NLOS information from the raw coordinate data', type=str2bool, default =False)
-
+parser.add_argument('--trainOnly_nLOS',help='Train a model with only LOS or NLOS data',  default=['none'],choices = ['LOS', 'NLOS', 'none'])
 
 args = parser.parse_args()
 print('Argumen parser inputs', args)
@@ -220,12 +222,21 @@ if args.strategy == 'default':
 elif args.strategy == 'one_hot' or args.strategy == 'reg':
     y_train,num_classes = custom_label(output_train_file,args.strategy)
     y_validation, _ = custom_label(output_validation_file,args.strategy)
+
+    # y_train = y_train[np.squeeze(los == 1)]
+
 else:
     print('invalid labeling strategy')
 
 
 if args.load_los:
     y_los_train, y_los_val = LOS_label(args.rawCoord_folder)
+    if args.trainOnly_nLOS == 'LOS':
+        y_train = y_train[np.squeeze(y_los_train == 1)]
+        y_validation = y_validation[np.squeeze(y_los_val == 1)]
+    elif args.trainOnly_nLOS == 'NLOS':
+        y_train = y_train[np.squeeze(y_los_train == 0)]
+        y_validation = y_validation[np.squeeze(y_los_val == 0)]
 ###############################################################################
 # Inputs
 ###############################################################################
@@ -239,6 +250,16 @@ if 'coord' in args.input:
     #validation
     X_coord_validation = open_npz(args.data_folder+'coord_input/coord_validation.npz','coordinates')
     # X_coord_validation = X_coord_validation.reshape((X_coord_validation.shape[0],X_coord_validation.shape[1],1))
+
+
+    if args.trainOnly_nLOS == 'LOS':
+        X_coord_train = X_coord_train[np.squeeze(y_los_train == 1), :]
+        X_coord_validation = X_coord_validation[np.squeeze(y_los_val == 1), :]
+
+    elif args.trainOnly_nLOS == 'NLOS':
+        X_coord_train = X_coord_train[np.squeeze(y_los_train == 0), :]
+        X_coord_validation = X_coord_validation[np.squeeze(y_los_val == 0), :]
+
     coord_train_input_shape = X_coord_train.shape
 
     if args.Aug:
@@ -273,6 +294,15 @@ if 'img' in args.input:
     X_img_train = open_npz(args.data_folder+'image_input/img_input_train_'+str(resizeFac)+'.npz','inputs')
     #validation
     X_img_validation = open_npz(args.data_folder+'image_input/img_input_validation_'+str(resizeFac)+'.npz','inputs')
+
+    if args.trainOnly_nLOS == 'LOS':
+        X_img_train = X_img_train[np.squeeze(y_los_train == 1), :]
+        X_img_validation = X_img_validation[np.squeeze(y_los_val == 1), :]
+
+    elif args.trainOnly_nLOS == 'NLOS':
+        X_img_train = X_img_train[np.squeeze(y_los_train == 0), :]
+        X_img_validation = X_img_validation[np.squeeze(y_los_val == 0), :]
+
     img_train_input_shape = X_img_train.shape
 
     if args.Aug:
@@ -299,6 +329,16 @@ if 'lidar' in args.input:
     X_lidar_train = open_npz(args.data_folder+'lidar_input/lidar_train.npz','input')
     #validation
     X_lidar_validation = open_npz(args.data_folder+'lidar_input/lidar_validation.npz','input')
+
+    if args.trainOnly_nLOS == 'LOS':
+        X_lidar_train = X_lidar_train[np.squeeze(y_los_train == 1), :]
+        X_lidar_validation = X_lidar_validation[np.squeeze(y_los_val == 1), :]
+
+    elif args.trainOnly_nLOS == 'NLOS':
+        X_lidar_train = X_lidar_train[np.squeeze(y_los_train == 0), :]
+        X_lidar_validation = X_lidar_validation[np.squeeze(y_los_val == 0), :]
+
+
     lidar_train_input_shape = X_lidar_train.shape
 
     if args.Aug:
@@ -457,7 +497,7 @@ else:
             print('*****************Seperate statics***********************')
             seperate_metric_in_out_train(model, X_coord_train, y_train, X_coord_validation, y_validation)
 
-            if args.load_los:
+            if args.load_los and args.trainOnly_nLOS == 'none':
                 acc_los, acc_nlos = los_accuracy(model, X_coord_validation, y_validation, y_los_val, 10)
 
 
@@ -530,7 +570,7 @@ else:
             print('*****************Seperate statics***********************')
             seperate_metric_in_out_train(model, X_img_train, y_train, X_img_validation, y_validation)
 
-            if args.load_los:
+            if args.load_los and args.trainOnly_nLOS == 'none':
                 acc_los, acc_nlos = los_accuracy(model, X_img_validation, y_validation, y_los_val, 10)
 
     else:
@@ -593,7 +633,7 @@ else:
             print('*****************Seperate statics***********************')
             seperate_metric_in_out_train(model, X_lidar_train, y_train, X_lidar_validation, y_validation)
 
-            if args.load_los:
+            if args.load_los and args.trainOnly_nLOS == 'none':
                 acc_los, acc_nlos = los_accuracy(model, X_lidar_validation, y_validation, y_los_val, 10)
 
 
