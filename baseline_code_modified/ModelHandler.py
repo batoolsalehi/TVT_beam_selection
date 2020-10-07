@@ -91,6 +91,8 @@ class ModelHandler:
             elif strategy == 'reg':
                 out = Dense(num_classes)(layer)
 
+            architecture = Model(inputs = input_coord, outputs = out)
+
 
 
         elif(model_type == 'lidar_marcus'):
