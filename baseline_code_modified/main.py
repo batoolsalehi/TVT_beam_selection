@@ -258,6 +258,11 @@ if 'coord' in args.input:
             save_npz(args.augmented_folder+'beam_output/','beams_output_train.npz',y_train,'beams_output_validation.npz',y_validation)
 
 
+    X_coord_train = X_coord_train.reshape((X_coord_train.shape[0],X_coord_train.shape[1],1))
+    X_coord_validation = X_coord_validation.reshape((X_coord_validation.shape[0],X_coord_validation.shape[1],1))
+    print(X_coord_train.shape)
+
+
 if 'img' in args.input:
     ###############################################################################
     resizeFac = 20 # Resize Factor
