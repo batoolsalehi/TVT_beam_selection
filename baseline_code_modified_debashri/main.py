@@ -376,25 +376,24 @@ file_name = 'acc'
 if 'coord' in args.input:
     coord_model = modelHand.createArchitecture('coord_mlp',num_classes,coord_train_input_shape[1],'complete',args.strategy, fusion)
     if args.loadWeights:
-        coord_model.load_weights(args.load_model_folder + 'coord.hdf5', by_name=True)
+        coord_model.load_weights(args.load_model_folder + 'best_weights.coord.h5', by_name=True)
 if 'img' in args.input:
     if nCh==1:
         img_model = modelHand.createArchitecture('light_image',num_classes,[img_train_input_shape[1],img_train_input_shape[2],1],'complete',args.strategy,fusion)
     else:
         img_model = modelHand.createArchitecture('light_image',num_classes,[img_train_input_shape[1],img_train_input_shape[2],img_train_input_shape[3]],'complete',args.strategy, fusion)
     if args.loadWeights:
-        img_model.load_weights(args.load_model_folder + 'img.hdf5', by_name=True)
+        img_model.load_weights(args.load_model_folder + 'best_weights.img.h5', by_name=True)
 if 'lidar' in args.input:
     lidar_model = modelHand.createArchitecture('lidar_marcus',num_classes,[lidar_train_input_shape[1],lidar_train_input_shape[2],lidar_train_input_shape[3]],'complete',args.strategy, fusion)
-    lidar_model.summary()
+    # lidar_model.summary()
     # lidar_model.layers.pop()
-    lidar_model.layers = lidar_model.layers[:-1]
-    lidar_model.summary()
-    with h5py.File(args.load_model_folder + 'lidar_new.hdf5', "r") as f:
-        print(f.keys())
-
+    # lidar_model.layers = lidar_model.layers[:-1]
+    # lidar_model.summary()
+    # with h5py.File(args.load_model_folder + 'best_weights.lidar.h5.hdf5', "r") as f:
+    #     print(f.keys())
     if args.loadWeights:
-        lidar_model.load_weights(args.load_model_folder + 'lidar_new.hdf5', by_name=True)
+        lidar_model.load_weights(args.load_model_folder + 'best_weights.lidar.h5', by_name=True)
 
 
 # ADDED TO PERFORM ONE HOT ENCODING
