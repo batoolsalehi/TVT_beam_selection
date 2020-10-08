@@ -70,21 +70,18 @@ class ModelHandler:
             # elif strategy == 'reg':
             #     out = Dense(num_classes)(layer)
 
+            input_coord = Input(shape=(input_shape, 1), name='coord_input')
+            layer = Conv1D(20, 2, padding="SAME", activation='relu', name='coord_conv1')(input_coord)
+            layer = Conv1D(10, 2, padding="SAME", activation='relu', name='coord_conv2')(layer)
+            layer = MaxPooling1D(pool_size=2, padding="same", name='coord_maxpool1')(layer)
 
+            layer = Conv1D(20, 2, padding="SAME", activation='relu', name='coord_conv3')(layer)
+            layer = Conv1D(10, 2, padding="SAME", activation='relu', name='coord_conv4')(layer)
+            layer = MaxPooling1D(pool_size=2, padding="same", name='coord_maxpool2')(layer)
 
-            #Model 3, convolutional
-            input_coord = Input(shape = (input_shape,1))
-            layer = Conv1D(20, 2, padding="SAME", activation='relu')(input_coord)
-            layer = Conv1D(10, 2, padding="SAME", activation='relu')(layer)
-            layer = MaxPooling1D(pool_size=2,padding="same")(layer)
-
-            layer = Conv1D(20, 2, padding="SAME", activation='relu')(layer)
-            layer = Conv1D(10, 2, padding="SAME", activation='relu')(layer)
-            layer = MaxPooling1D(pool_size=2, padding="same")(layer)
-
-            layer = Flatten()(layer)
-            layer = Dense(1024,activation='relu')(layer)
-            layer = Dense(512,activation='relu')(layer)
+            layer = Flatten(name='coord_flatten')(layer)
+            layer = Dense(1024, activation='relu', name='coord_dense1')(layer)
+            layer = Dense(512, activation='relu', name='coord_dense2')(layer)
 
             if strategy == 'one_hot':
                 out = Dense(num_classes,activation='softmax')(layer)

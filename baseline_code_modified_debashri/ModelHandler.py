@@ -58,16 +58,30 @@ class ModelHandler:
             # layer = Dense(4,activation='relu')(layer)
             #Model 2
 
-            input_coord = Input(shape = (input_shape,))
-            layer = Dense(128,activation='relu')(input_coord)
-            layer = Dense(64,activation='relu')(layer)
-            layer = Dense(16,activation='relu')(layer)
-            layer = Dense(32,activation='relu')(layer)
-            layer =  Dense(4,activation='relu')(layer) #CHANGED FROM layer to out
+            # input_coord = Input(shape = (input_shape,))
+            # layer = Dense(128,activation='relu')(input_coord)
+            # layer = Dense(64,activation='relu')(layer)
+            # layer = Dense(16,activation='relu')(layer)
+            # layer = Dense(32,activation='relu')(layer)
+            # layer =  Dense(4,activation='relu')(layer) #CHANGED FROM layer to out
+
+            # Model 3, convolutional
+            input_coord = Input(shape=(input_shape, 1), name='coord_input')
+            layer = Conv1D(20, 2, padding="SAME", activation='relu', name='coord_conv1')(input_coord)
+            layer = Conv1D(10, 2, padding="SAME", activation='relu', name='coord_conv2')(layer)
+            layer = MaxPooling1D(pool_size=2, padding="same", name='coord_maxpool1')(layer)
+
+            layer = Conv1D(20, 2, padding="SAME", activation='relu', name='coord_conv3')(layer)
+            layer = Conv1D(10, 2, padding="SAME", activation='relu', name='coord_conv4')(layer)
+            layer = MaxPooling1D(pool_size=2, padding="same", name='coord_maxpool2')(layer)
+
+            layer = Flatten(name='coord_flatten')(layer)
+            layer = Dense(1024, activation='relu', name='coord_dense1')(layer)
+            layer = Dense(512, activation='relu', name='coord_dense2')(layer)
 	    
             # out = Dense(2,activation='tanh')(input_coord)
             if fusion:
-                out = Dense(num_classes, activation='tanh')(layer)
+                out = Dense(num_classes, activation='tanh', name='coord_tanh')(layer)
                 architecture = Model(inputs = input_coord, outputs = out)
             else:
 	        # COMMENTED

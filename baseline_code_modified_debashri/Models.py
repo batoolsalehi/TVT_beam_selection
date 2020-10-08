@@ -91,9 +91,9 @@ def ResLike(input_shape, num_classes, strategy, fusion= False):
     layer = Add()([layer, d]) # DR
 
     layer = Flatten()(layer)
-    layer = Dense(512, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(layer)
+    layer = Dense(512, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4), name="dense")(layer)
     layer = Dropout(0.2)(layer)  # 0.25 is similar ... could try more values
-    layer = Dense(256, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(layer)
+    layer = Dense(256, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4), name="dense_1")(layer)
     out = layer = Dropout(0.2)(layer)  # 0.25 is similar ... could try more values
     
     if fusion : return Model(inputs=input_lid, outputs=out)

@@ -27,6 +27,7 @@ import os
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import RobustScaler
 import matplotlib
+import h5py
 #matplotlib.use('TkAgg')
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -216,6 +217,9 @@ parser.add_argument('--fusion_architecture', type=str ,default='mlp', help='Whet
 parser.add_argument('--k_fold', type=int, help='K-fold Cross validation', default=0)
 parser.add_argument('--test_data_folder', help='Location of the test data directory', type=str)
 parser.add_argument('--img_version', type=str, help='Which version of image folder to use', default='')
+parser.add_argument('--loadWeights', type=str2bool, help='Load single modality trained weights', default=False)
+parser.add_argument('--load_model_folder', help='Location of the trained models folder', type=str)
+
 filepath = 'best_weights.wts.h5'
 
 
@@ -286,6 +290,10 @@ if 'coord' in args.input:
             # y_validation, X_coord_validation = balance_data(Initial_labels_val,X_coord_validation,0.001,(2,))
             save_npz(args.augmented_folder+'coord_input/','coord_train.npz',X_coord_train,'coord_validation.npz',X_coord_validation)
             # save_npz(args.augmented_folder+'beam_output/','beams_output_train.npz',y_train,'beams_output_validation.npz',y_validation)
+
+    X_coord_train = X_coord_train.reshape((X_coord_train.shape[0], X_coord_train.shape[1], 1))
+    X_coord_validation = X_coord_validation.reshape((X_coord_validation.shape[0], X_coord_validation.shape[1], 1))
+    print(X_coord_train.shape)
 
 
 if 'img' in args.input:
@@ -367,13 +375,27 @@ file_name = 'acc'
 
 if 'coord' in args.input:
     coord_model = modelHand.createArchitecture('coord_mlp',num_classes,coord_train_input_shape[1],'complete',args.strategy, fusion)
+    if args.loadWeights:
+        coord_model.load_weights(args.load_model_folder + 'coord.hdf5', by_name=True)
 if 'img' in args.input:
     if nCh==1:
         img_model = modelHand.createArchitecture('light_image',num_classes,[img_train_input_shape[1],img_train_input_shape[2],1],'complete',args.strategy,fusion)
     else:
         img_model = modelHand.createArchitecture('light_image',num_classes,[img_train_input_shape[1],img_train_input_shape[2],img_train_input_shape[3]],'complete',args.strategy, fusion)
+    if args.loadWeights:
+        img_model.load_weights(args.load_model_folder + 'img.hdf5', by_name=True)
 if 'lidar' in args.input:
     lidar_model = modelHand.createArchitecture('lidar_marcus',num_classes,[lidar_train_input_shape[1],lidar_train_input_shape[2],lidar_train_input_shape[3]],'complete',args.strategy, fusion)
+    lidar_model.summary()
+    # lidar_model.layers.pop()
+    lidar_model.layers = lidar_model.layers[:-1]
+    lidar_model.summary()
+    with h5py.File(args.load_model_folder + 'lidar_new.hdf5', "r") as f:
+        print(f.keys())
+
+    if args.loadWeights:
+        lidar_model.load_weights(args.load_model_folder + 'lidar_new.hdf5', by_name=True)
+
 
 # ADDED TO PERFORM ONE HOT ENCODING
 #y_train = to_categorical(y_train, num_classes=num_classes)
