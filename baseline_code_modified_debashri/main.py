@@ -937,7 +937,7 @@ conf = np.zeros([len(classes), len(classes)])
 confnorm = np.zeros([len(classes), len(classes)])
 for i in range(0, len(x_validation)):
     if 1 in list(y_val_hat[i, :]):
-    	j = list(y_val_hat[i, :]).index(1)
+    	j = list(y_validation[i, :]).index(1)
     else:
 	    j = 0
     k = int(np.argmax(y_val_hat[i, :]))
