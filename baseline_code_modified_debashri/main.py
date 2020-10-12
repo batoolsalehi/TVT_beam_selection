@@ -219,6 +219,7 @@ parser.add_argument('--test_data_folder', help='Location of the test data direct
 parser.add_argument('--img_version', type=str, help='Which version of image folder to use', default='')
 parser.add_argument('--loadWeights', type=str2bool, help='Load single modality trained weights', default=False)
 parser.add_argument('--load_model_folder', help='Location of the trained models folder', type=str)
+parser.add_argument('--retrainSingleModels', type=str2bool, help='Retrain single modality models or freeze the weights', default=True)
 
 filepath = 'best_weights.wts.h5'
 
@@ -293,6 +294,7 @@ if 'coord' in args.input:
 
     X_coord_train = X_coord_train.reshape((X_coord_train.shape[0], X_coord_train.shape[1], 1))
     X_coord_validation = X_coord_validation.reshape((X_coord_validation.shape[0], X_coord_validation.shape[1], 1))
+    X_coord_test = X_coord_test.reshape((X_coord_test.shape[0], X_coord_test.shape[1], 1))
     print(X_coord_train.shape)
 
 
@@ -375,8 +377,12 @@ file_name = 'acc'
 
 if 'coord' in args.input:
     coord_model = modelHand.createArchitecture('coord_mlp',num_classes,coord_train_input_shape[1],'complete',args.strategy, fusion)
+
     if args.loadWeights:
         coord_model.load_weights(args.load_model_folder + 'best_weights.coord.h5', by_name=True)
+        if args.retrainSingleModels:
+            coord_model.trainable = False
+
 if 'img' in args.input:
     if nCh==1:
         img_model = modelHand.createArchitecture('light_image',num_classes,[img_train_input_shape[1],img_train_input_shape[2],1],'complete',args.strategy,fusion)
@@ -384,6 +390,8 @@ if 'img' in args.input:
         img_model = modelHand.createArchitecture('light_image',num_classes,[img_train_input_shape[1],img_train_input_shape[2],img_train_input_shape[3]],'complete',args.strategy, fusion)
     if args.loadWeights:
         img_model.load_weights(args.load_model_folder + 'best_weights.img.h5', by_name=True)
+        if args.retrainSingleModels:
+            coord_model.trainable = False
 if 'lidar' in args.input:
     lidar_model = modelHand.createArchitecture('lidar_marcus',num_classes,[lidar_train_input_shape[1],lidar_train_input_shape[2],lidar_train_input_shape[3]],'complete',args.strategy, fusion)
     # lidar_model.summary()
@@ -394,6 +402,8 @@ if 'lidar' in args.input:
     #     print(f.keys())
     if args.loadWeights:
         lidar_model.load_weights(args.load_model_folder + 'best_weights.lidar.h5', by_name=True)
+        if args.retrainSingleModels:
+            coord_model.trainable = False
 
 
 # ADDED TO PERFORM ONE HOT ENCODING
@@ -852,7 +862,8 @@ for i in range(num_classes):
 
 # Plot confusion matrix
 #y_val_hat = np.around(model.predict(x_validation, batch_size=args.bs))
-y_val_hat = model.predict(x_validation, batch_size=args.bs)
+# y_val_hat = model.predict(x_validation, batch_size=args.bs)
+y_val_hat = model._make_predict_function(x_validation, batch_size=args.bs)
 y_test_hat = model.predict(x_test, batch_size=args.bs)
 #print(y_val_hat)
 
