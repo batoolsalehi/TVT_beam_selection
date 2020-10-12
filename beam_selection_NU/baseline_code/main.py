@@ -184,7 +184,7 @@ parser.add_argument('--fusion_architecture', type=str ,default='mlp', help='Whet
 parser.add_argument('--img_version', type=str, help='Which version of image folder to use', default='')
 
 parser.add_argument('--restore_models', type=str2bool, help='Load single modality trained weights', default=False)
-parser.add_argument('--model_folder', help='Location of the trained models folder', type=str,default = '/home/batool/beam_selection_deliver/baseline_code/model_folder/')
+parser.add_argument('--model_folder', help='Location of the trained models folder', type=str,default = '/home/batool/beam_selection_NU/baseline_code/model_folder/')
 
 parser.add_argument('--image_feature_to_use', type=str ,default='v1', help='feature images to use',choices=['v1','v2','custom'])
 
@@ -262,11 +262,11 @@ if 'img' in args.input:
     ###############################################################################
     resizeFac = 20 # Resize Factor
     nCh = 1 # The number of channels of the image
-    if args.image_feature_to_use = 'v1':
+    if args.image_feature_to_use == 'v1':
         folder = 'image_input'
-    elif args.image_feature_to_use = 'v2':
+    elif args.image_feature_to_use == 'v2':
         folder =  'image_v2_input'
-    elif args.image_feature_to_use = 'custom':
+    elif args.image_feature_to_use == 'custom':
         folder = 'image_custom_input'
 
     #train
@@ -332,7 +332,7 @@ opt = Adam(lr=args.lr, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgra
 
 if 'coord' in args.input:
     if args.restore_models:
-        coord_model = load_model_structure(args.model_folder+'coord.json')
+        coord_model = load_model_structure(args.model_folder+'coord_model.json')
         coord_model.load_weights(args.model_folder + 'best_weights.coord.h5', by_name=True)
     else:
         coord_model = modelHand.createArchitecture('coord_mlp',num_classes,coord_train_input_shape[1],'complete',args.strategy, fusion)
@@ -340,7 +340,7 @@ if 'coord' in args.input:
 
 if 'img' in args.input:
     if args.restore_models:
-        img_model = load_model_structure(args.model_folder+'image.json')
+        img_model = load_model_structure(args.model_folder+'image_model.json')
         img_model.load_weights(args.model_folder + 'best_weights.img.h5', by_name=True)
     else:
         if nCh==1:
@@ -351,8 +351,8 @@ if 'img' in args.input:
 
 if 'lidar' in args.input:
     if args.restore_models:
-        lidar_model = load_model_structure(args.model_folder+'lidar.json')
-        lidar_model.load_weights(args.load_model_folder + 'best_weights.lidar.h5', by_name=True)
+        lidar_model = load_model_structure(args.model_folder+'lidar_model.json')
+        lidar_model.load_weights(args.model_folder + 'best_weights.lidar.h5', by_name=True)
     else:
         lidar_model = modelHand.createArchitecture('lidar_marcus',num_classes,[lidar_train_input_shape[1],lidar_train_input_shape[2],lidar_train_input_shape[3]],'complete',args.strategy, fusion)
         add_model('lidar',lidar_model,args.model_folder)
@@ -380,6 +380,10 @@ if multimodal == 2:
         model.summary()
         hist = model.fit(x_train, y_train, validation_data=(x_validation, y_validation), epochs=args.epochs,batch_size=args.bs, callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.coord_lidar.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
 
+        print(hist.history.keys())
+        print('categorical_accuracy', hist.history['categorical_accuracy'],'top_2_accuracy',hist.history['top_2_accuracy'],'top_10_accuracy', hist.history['top_10_accuracy']
+                ,'val_categorical_accuracy',hist.history['val_categorical_accuracy'],'val_top_2_accuracy',hist.history['val_top_2_accuracy'],'val_top_10_accuracy',hist.history['val_top_10_accuracy'])
+
         print('***************Testing the model************')
         scores = model.evaluate(x_test, y_test)
         print(model.metrics_names, scores)
@@ -404,10 +408,15 @@ if multimodal == 2:
                                         top_2_accuracy, top_10_accuracy,
                                         top_50_accuracy])
         model.summary()
-        hist = model.fit(x_train, y_train,
-                         validation_data=(x_validation, y_validation), epochs=args.epochs, batch_size=args.bs,
-                         callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.coord_img.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
+        hist = model.fit(x_train, y_train,validation_data=(x_validation, y_validation), epochs=args.epochs, batch_size=args.bs, callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.coord_img.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
 
+        print(hist.history.keys())
+        print('categorical_accuracy', hist.history['categorical_accuracy'],'top_2_accuracy',hist.history['top_2_accuracy'],'top_10_accuracy', hist.history['top_10_accuracy']
+                ,'val_categorical_accuracy',hist.history['val_categorical_accuracy'],'val_top_2_accuracy',hist.history['val_top_2_accuracy'],'val_top_10_accuracy',hist.history['val_top_10_accuracy'])
+
+        print('***************Testing the model************')
+        scores = model.evaluate(x_test, y_test)
+        print(model.metrics_names, scores)
 
     else: # img+lidar
         x_train = [X_lidar_train,X_img_train]
@@ -436,6 +445,10 @@ if multimodal == 2:
         model.summary()
 
         hist = model.fit(x_train, y_train, validation_data=(x_validation, y_validation), epochs=args.epochs,batch_size=args.bs, callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.img_lidar.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
+
+        print(hist.history.keys())
+        print('categorical_accuracy', hist.history['categorical_accuracy'],'top_2_accuracy',hist.history['top_2_accuracy'],'top_10_accuracy', hist.history['top_10_accuracy']
+                ,'val_categorical_accuracy',hist.history['val_categorical_accuracy'],'val_top_2_accuracy',hist.history['val_top_2_accuracy'],'val_top_10_accuracy',hist.history['val_top_10_accuracy'])
 
 
         print('***************Testing the model************')
@@ -470,6 +483,10 @@ elif multimodal == 3:
 
     # TRAINING THE MODEL
     hist = model.fit(x_train, y_train, validation_data=(x_validation, y_validation), epochs=args.epochs, batch_size=args.bs, callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.coord_img_lidar.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
+
+    print(hist.history.keys())
+    print('categorical_accuracy', hist.history['categorical_accuracy'],'top_2_accuracy',hist.history['top_2_accuracy'],'top_10_accuracy', hist.history['top_10_accuracy']
+                ,'val_categorical_accuracy',hist.history['val_categorical_accuracy'],'val_top_2_accuracy',hist.history['val_top_2_accuracy'],'val_top_10_accuracy',hist.history['val_top_10_accuracy'])
 
     print('***************Testing the model************')
     scores = model.evaluate(x_test, y_test)
@@ -593,4 +610,5 @@ else:
 
         # print('*****************Seperate statics***********************')
         # seperate_metric_in_out_train(model,X_lidar_train,y_train,X_lidar_validation, y_validation)
+
 
