@@ -2,6 +2,7 @@ from tensorflow.keras.layers import BatchNormalization, LeakyReLU, Conv2D, add,\
     Flatten, MaxPooling2D, Dense, Reshape, Input, Dropout, concatenate, Conv1D, MaxPooling1D,Add
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras import regularizers
+from tensorflow.keras.models import model_from_json
 
 import tensorflow.keras.utils
 import numpy as np
@@ -165,3 +166,4 @@ class ModelHandler:
                 architecture = Model(inputs=input_lid, outputs=out)
 
         return architecture
+
