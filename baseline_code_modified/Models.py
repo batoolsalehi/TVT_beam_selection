@@ -1,8 +1,8 @@
 from __future__ import division
 
 import six
-from tensorflow.keras.layers import Activation, BatchNormalization, LeakyReLU, Conv2D, add,\
-    Flatten, MaxPooling2D, Dense, Reshape, Input, Dropout, concatenate, Conv1D, MaxPooling1D
+from tensorflow.keras.layers import Activation, BatchNormalization, LeakyReLU, Conv2D, Add,\
+    Flatten, MaxPooling2D, Dense, Reshape, Input, Dropout, Concatenate, Conv1D, MaxPooling1D
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras import regularizers
 
@@ -42,6 +42,46 @@ def Baseline(input_shape, num_classes, strategy):
         out = Dense(num_classes)(layer)
     return Model(inputs = input_lid, outputs = out)    
 
+def BaselineV2(input_shape, num_classes, strategy):
+    dropProb=0.25
+    channel = 32
+    input_lid = Input(shape = input_shape, name='img_input')
+    layer1 = Conv2D(channel,kernel_size=(7,7),
+                   activation='relu',padding="SAME",input_shape=input_shape, name='img_conv11')(input_lid)
+    layer2 = Conv2D(channel,kernel_size=(11,11),
+                   activation='relu',padding="SAME",input_shape=input_shape, name='img_conv12')(input_lid)
+    layer3 = Conv2D(channel,kernel_size=(3,3),
+                   activation='relu',padding="SAME",input_shape=input_shape, name='img_conv13')(input_lid)
+    
+    layer = Concatenate()([layer1,layer2,layer3])
+    layer = MaxPooling2D(pool_size=(2, 2), name='img_maxpool1')(layer)
+    layer = Dropout(dropProb, name='img_dropout1')(layer)
+    
+    
+    b = layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv3')(layer)
+    layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv4')(layer)
+    layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv5')(layer)  # + b
+    layer = Add(name='img_add2')([layer, b])  # DR
+    layer = MaxPooling2D(pool_size=(2, 2), name='img_maxpool2')(layer)
+    c = layer = Dropout(dropProb, name='img_dropout2')(layer)
+
+    layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv6')(layer)
+    layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv7')(layer)  # + c
+    layer = Add(name='img_add3')([layer, c])  # DR
+    layer = MaxPooling2D(pool_size=(1, 2), name='img_maxpool3')(layer)
+    d = layer = Dropout(dropProb, name='img_dropout3')(layer)
+    
+    layer = Flatten( name='img_flatten')(layer)
+    layer = Dense(512, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4), name='img_dense1')(layer)
+    layer = Dropout(0.25, name='img_dropout4')(layer)
+    layer = Dense(256, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4), name='img_dense2')(layer)
+    layer = Dropout(0.25, name='img_dropout5')(layer)
+
+    if strategy == 'one_hot':
+        out = Dense(num_classes,activation='softmax')(layer)
+    elif strategy == 'reg':
+        out = Dense(num_classes)(layer)
+    return Model(inputs = input_lid, outputs = out)
 
 def ResLike(input_shape, num_classes, strategy):
     dropProb = 0.3
