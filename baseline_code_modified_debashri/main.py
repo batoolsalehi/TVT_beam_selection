@@ -695,7 +695,7 @@ else:
                                 optimizer=opt,
                                 metrics=[metrics.categorical_accuracy,
                                         top_2_accuracy, top_10_accuracy,
-                                        top_50_accuracy])
+                                        top_50_accuracy,  precision_m, recall_m, f1_m])
             model.summary()
             hist = model.fit(X_coord_train,y_train,
             epochs=args.epochs,batch_size=args.bs, shuffle=args.shuffle)
@@ -741,7 +741,7 @@ else:
                                 optimizer=opt,
                                 metrics=[metrics.categorical_accuracy,
                                         top_2_accuracy, top_10_accuracy,
-                                        top_50_accuracy])
+                                        top_50_accuracy,  precision_m, recall_m, f1_m])
             model.summary()
             hist = model.fit(X_img_train,y_train,
             epochs=args.epochs,batch_size=args.bs, shuffle=args.shuffle)
@@ -787,7 +787,7 @@ else:
                           optimizer=opt,
                           metrics=[metrics.categorical_accuracy, top_2_accuracy,
                                    metrics.top_k_categorical_accuracy, top_10_accuracy,
-                                   top_50_accuracy])
+                                   top_50_accuracy, precision_m, recall_m, f1_m])
             model.summary()
             cb_list = [tf.keras.callbacks.ModelCheckpoint(filepath, monitor='val_loss', verbose=2, save_best_only=True, mode='auto'),
                        tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, verbose=2, mode='auto',restore_best_weights=True),
