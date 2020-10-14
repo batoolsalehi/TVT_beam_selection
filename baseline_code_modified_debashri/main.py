@@ -80,6 +80,29 @@ def top_10_accuracy(y_true,y_pred):
 def top_50_accuracy(y_true,y_pred):
     return metrics.top_k_categorical_accuracy(y_true,y_pred,k=50)
 
+########## FUNCTIONS TO CALCULATE F SCORE OF THE MODEL ###############
+from tensorflow.keras import backend as K
+def recall_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    recall = true_positives / (possible_positives + K.epsilon())
+    return recall
+
+
+def precision_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    return precision
+
+
+def f1_m(y_true, y_pred):
+    precision = precision_m(y_true, y_pred)
+    recall = recall_m(y_true, y_pred)
+    return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
+######################################################################
+
+
 def beamsLogScale(y,thresholdBelowMax):
         y_shape = y.shape   # shape is (#,256)
 
@@ -584,11 +607,11 @@ elif multimodal == 3:
                   optimizer=opt,
                   metrics=[metrics.categorical_accuracy, top_2_accuracy,
                            metrics.top_k_categorical_accuracy, top_10_accuracy,
-                           top_50_accuracy])
+                           top_50_accuracy, precision_m, recall_m, f1_m])
     model.summary()
     cb_list = [tf.keras.callbacks.ModelCheckpoint(filepath, monitor='val_loss', verbose=2, save_best_only=True, mode='auto'),
         tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, verbose=2, mode='auto',restore_best_weights=True),
-        tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10, verbose=2, mode='auto',min_lr=args.lr * 0.01)]
+        tf.keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=5, verbose=2, mode='auto',min_lr=args.lr * 0.01)]
 
     # CONCATINATING TRAIN AND VALIDATION AND PERFORM K FOLD CROSS VALIDATION
     k_folds = args.k_fold
