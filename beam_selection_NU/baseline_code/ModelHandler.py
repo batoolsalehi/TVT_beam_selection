@@ -1,5 +1,5 @@
 from tensorflow.keras.layers import BatchNormalization, LeakyReLU, Conv2D, add,\
-    Flatten, MaxPooling2D, Dense, Reshape, Input, Dropout, concatenate, Conv1D, MaxPooling1D,Add
+    Flatten, MaxPooling2D, Dense, Reshape, Input, Dropout, Concatenate, Conv1D, MaxPooling1D,Add
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras import regularizers
 from tensorflow.keras.models import model_from_json
@@ -36,7 +36,7 @@ def load_weights(model, weight_path = '/scratch/weights.02-3.05.hdf5'):
 
 class ModelHandler:
 
-    def createArchitecture(self,model_type,num_classes,input_shape,chain,strategy, fusion):
+    def createArchitecture(self,model_type,num_classes,input_shape,chain,strategy,fusion):
         '''
         Returns a NN model.
         modelType: a string which defines the structure of the model
@@ -72,7 +72,53 @@ class ModelHandler:
                 architecture = Model(inputs = input_coord, outputs = out)
 
 
-        elif(model_type == 'light_image'):
+        elif(model_type == 'light_image_custom'):
+            print('************You are using Tongnet model************')
+            dropProb=0.25
+            channel = 32
+            input_lid = Input(shape = input_shape, name='img_input')
+            layer1 = Conv2D(channel,kernel_size=(7,7),
+                           activation='relu',padding="SAME",input_shape=input_shape, name='img_conv11')(input_lid)
+            layer2 = Conv2D(channel,kernel_size=(11,11),
+                           activation='relu',padding="SAME",input_shape=input_shape, name='img_conv12')(input_lid)
+            layer3 = Conv2D(channel,kernel_size=(3,3),
+                           activation='relu',padding="SAME",input_shape=input_shape, name='img_conv13')(input_lid)
+
+            layer = Concatenate(name='img_concatination')([layer1,layer2,layer3])
+            layer = MaxPooling2D(pool_size=(2, 2), name='img_maxpool1')(layer)
+            layer = Dropout(dropProb, name='img_dropout1')(layer)
+
+
+            b = layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv3')(layer)
+            layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv4')(layer)
+            layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv5')(layer)  # + b
+            layer = Add(name='img_add2')([layer, b])  # DR
+            layer = MaxPooling2D(pool_size=(2, 2), name='img_maxpool2')(layer)
+            c = layer = Dropout(dropProb, name='img_dropout2')(layer)
+
+            layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv6')(layer)
+            layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv7')(layer)  # + c
+            layer = Add(name='img_add3')([layer, c])  # DR
+            layer = MaxPooling2D(pool_size=(1, 2), name='img_maxpool3')(layer)
+            d = layer = Dropout(dropProb, name='img_dropout3')(layer)
+
+            layer = Flatten( name='img_flatten')(layer)
+            layer = Dense(512, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4), name='img_dense1')(layer)
+            layer = Dropout(0.25, name='img_dropout4')(layer)
+            layer = Dense(256, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4), name='img_dense2')(layer)
+            out = Dropout(0.25, name='img_dropout5')(layer)
+
+            if fusion:
+                architecture = Model(inputs=input_lid, outputs=out)
+            else:
+                if strategy == 'one_hot':
+                    out = Dense(num_classes,activation='softmax')(layer)
+                elif strategy == 'reg':
+                    out = Dense(num_classes)(layer)
+                architecture = Model(inputs = input_lid, outputs = out)
+
+
+        elif(model_type == 'light_image_v1_v2'):
             print('************You are using Tongnet model************')
             dropProb = 0.3
             channel = 16
