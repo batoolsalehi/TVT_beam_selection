@@ -12,7 +12,7 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 import random
-
+from time import time
 import tensorflow as tf
 import tensorflow.keras
 from tensorflow.keras import metrics
@@ -197,7 +197,7 @@ if args.id_gpu >= 0:
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     # The GPU id to use
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.id_gpu)
-
+start = time()
 
 check_and_create(args.model_folder)
 ###############################################################################
@@ -276,6 +276,7 @@ if 'img' in args.input:
     #test
     X_img_test = open_npz(args.test_data_folder+folder+'/img_input_test_' + str(resizeFac) + '.npz','inputs')
     img_train_input_shape = X_img_train.shape
+    print('shape first',X_img_test.shape)
 
     if args.Aug:
         try:
@@ -294,6 +295,18 @@ if 'img' in args.input:
             # y_validation, X_img_validation = balance_data(Initial_labels_val,X_img_validation,0.001,(48, 81, 1))
             save_npz(args.augmented_folder+'image_input/','img_input_train_20.npz',X_img_train,'img_input_validation_20.npz',X_img_validation)
             save_npz(args.augmented_folder+'beam_output/','beams_output_train.npz',y_train,'beams_output_validation.npz',y_validation)
+
+    if args.image_feature_to_use == 'v1' or args.image_feature_to_use =='v2':
+        print('********************Normalize image********************')
+        X_img_train = X_img_train.astype('float32') / 255
+        X_img_validation = X_img_validation.astype('float32') / 255
+        X_img_test = X_img_test.astype('float32') / 255
+    elif args.image_feature_to_use == 'custom':
+        print('********************Reshape images for convolutional********************')
+        X_img_train = X_img_train.reshape((X_img_train.shape[0], X_img_train.shape[1], X_img_train.shape[2],1))
+        X_img_validation = X_img_validation.reshape((X_img_validation.shape[0], X_img_validation.shape[1],X_img_validation.shape[2], 1))
+        X_img_test = X_img_test.reshape((X_img_test.shape[0], X_img_test.shape[1], X_img_test.shape[2],1))
+
 
 if 'lidar' in args.input:
     ###############################################################################
@@ -338,16 +351,20 @@ if 'coord' in args.input:
         coord_model = modelHand.createArchitecture('coord_mlp',num_classes,coord_train_input_shape[1],'complete',args.strategy, fusion)
         add_model('coord',coord_model,args.model_folder)
 
+
 if 'img' in args.input:
+
+    if args.image_feature_to_use == 'v1' or args.image_feature_to_use =='v2':
+        model_type = 'light_image_v1_v2'
+    elif args.image_feature_to_use == 'custom':
+        model_type = 'light_image_custom'
+
     if args.restore_models:
-        img_model = load_model_structure(args.model_folder+'image_model.json')
-        img_model.load_weights(args.model_folder + 'best_weights.img.h5', by_name=True)
+        img_model = load_model_structure(args.model_folder+'image_'+args.image_feature_to_use+'_model'+'.json')
+        img_model.load_weights(args.model_folder + 'best_weights.img_'+args.image_feature_to_use+'.h5', by_name=True)
     else:
-        if nCh==1:
-            img_model = modelHand.createArchitecture('light_image',num_classes,[img_train_input_shape[1],img_train_input_shape[2],1],'complete',args.strategy,fusion)
-        else:
-            img_model = modelHand.createArchitecture('light_image',num_classes,[img_train_input_shape[1],img_train_input_shape[2],img_train_input_shape[3]],'complete',args.strategy, fusion)
-        add_model('image',img_model,args.model_folder)
+        img_model = modelHand.createArchitecture(model_type,num_classes,[img_train_input_shape[1],img_train_input_shape[2],1],'complete',args.strategy,fusion)
+        add_model('image_'+args.image_feature_to_use,img_model,args.model_folder)
 
 if 'lidar' in args.input:
     if args.restore_models:
@@ -367,16 +384,16 @@ if multimodal == 2:
         x_validation = [X_lidar_validation, X_coord_validation]
         x_test = [X_lidar_test, X_coord_test]
 
-        combined_model = concatenate([lidar_model.output, coord_model.output])
-        z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(combined_model)
-        z = Dropout(0.5)(z)
-        z = Dense(num_classes, activation="softmax", use_bias=True)(z)
+        combined_model = concatenate([lidar_model.output, coord_model.output],name = 'cont_fusion_coord_lidar')
+        z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4),name = 'dense1_fusion_coord_lidar')(combined_model)
+        z = Dropout(0.5,name = 'drop_fusion_coord_lidar')(z)
+        z = Dense(num_classes, activation="softmax", use_bias=True,name = 'dense2_fusion_coord_lidar')(z)
         model = Model(inputs=[lidar_model.input, coord_model.input], outputs=z)
         model.compile(loss=categorical_crossentropy,
                       optimizer=opt,
                       metrics=[metrics.categorical_accuracy,
                                         top_2_accuracy, top_10_accuracy,
-                                        top_50_accuracy])
+                                        top_50_accuracy,precision_m, recall_m, f1_m])
         model.summary()
         hist = model.fit(x_train, y_train, validation_data=(x_validation, y_validation), epochs=args.epochs,batch_size=args.bs, callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.coord_lidar.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
 
@@ -393,22 +410,22 @@ if multimodal == 2:
         x_validation = [X_img_validation, X_coord_validation]
         x_test = [X_img_test, X_coord_test]
 
-        combined_model = concatenate([img_model.output, coord_model.output])
+        combined_model = concatenate([img_model.output, coord_model.output],name = 'cont_fusion_coord_img')
         z = Reshape((combined_model.shape[1], 1))(combined_model)
-        z = Conv1D(num_classes * 2, kernel_size=1, strides=1, activation="relu")(z)  # KERNEL SIZE CHANGED FROM 1 TO 2
-        z = Flatten()(z)
+        z = Conv1D(num_classes * 2, kernel_size=1, strides=1, activation="relu",name = 'conv1_fusion_coord_img')(z)  # KERNEL SIZE CHANGED FROM 1 TO 2
+        z = Flatten(name = 'flat_fusion_coord_img')(z)
 
-        z = Dense(num_classes * 2, activation="relu", use_bias=True)(z)
-        z = Dropout(0.5)(z)
-        z = Dense(num_classes, activation="softmax", use_bias=True)(z)
+        z = Dense(num_classes * 2, activation="relu", use_bias=True,name = 'dense1_fusion_coord_img')(z)
+        z = Dropout(0.5,name = 'drop1_fusion_coord_lidar')(z)
+        z = Dense(num_classes, activation="softmax", use_bias=True,name = 'dense2_fusion_coord_img')(z)
         model = Model(inputs=[img_model.input, coord_model.input], outputs=z)
         model.compile(loss=categorical_crossentropy,
                       optimizer=opt,
                       metrics=[metrics.categorical_accuracy,
                                         top_2_accuracy, top_10_accuracy,
-                                        top_50_accuracy])
+                                        top_50_accuracy,precision_m, recall_m, f1_m])
         model.summary()
-        hist = model.fit(x_train, y_train,validation_data=(x_validation, y_validation), epochs=args.epochs, batch_size=args.bs, callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.coord_img.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
+        hist = model.fit(x_train, y_train,validation_data=(x_validation, y_validation), epochs=args.epochs, batch_size=args.bs, callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.coord_img_'+args.image_feature_to_use+'.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
 
         print(hist.history.keys())
         print('categorical_accuracy', hist.history['categorical_accuracy'],'top_2_accuracy',hist.history['top_2_accuracy'],'top_10_accuracy', hist.history['top_10_accuracy']
@@ -423,28 +440,28 @@ if multimodal == 2:
         x_validation = [X_lidar_validation, X_img_validation]
         x_test = [X_lidar_test, X_img_test]
 
-        combined_model = concatenate([lidar_model.output, img_model.output])
+        combined_model = concatenate([lidar_model.output, img_model.output],name = 'cont_fusion_img_lidar')
         if args.fusion_architecture == 'cnn':
             z = Reshape((combined_model.shape[1], 1))(combined_model)
-            a = z = Conv1D(num_classes * 2, kernel_size=1, strides=1, activation="relu")(z)  # KERNEL SIZE CHANGED FROM 1 TO 2
-            z = Dropout(0.5)(z)
-            z = Flatten()(z)
+            a = z = Conv1D(num_classes * 2, kernel_size=1, strides=1, activation="relu",name = 'conv_fusion_img_lidar')(z)  # KERNEL SIZE CHANGED FROM 1 TO 2
+            z = Dropout(0.5,name = 'drop1_fusion_img_lidar')(z)
+            z = Flatten(name = 'flat_fusion_img_lidar')(z)
 
-            z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(z)
+            z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4),name = 'dense1_fusion_img_lidar')(z)
 
         else:
-            z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(combined_model)  # USE THIS AND THE NEXT PART OF CODE OF mlp IMPLEMENTATION
+            z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4),name = 'dense2_fusion_img_lidar')(combined_model)  # USE THIS AND THE NEXT PART OF CODE OF mlp IMPLEMENTATION
 
-        z = Dropout(0.5)(z)
-        z = Dense(num_classes, activation="softmax")(z)
+        z = Dropout(0.5,name = 'drop2_fusion_img_lidar')(z)
+        z = Dense(num_classes, activation="softmax",name = 'dense3_fusion_img_lidar')(z)
 
         model = Model(inputs=[lidar_model.input, img_model.input], outputs=z)
         model.compile(loss=categorical_crossentropy,optimizer=opt,
                       metrics=[metrics.categorical_accuracy,
-                                        top_2_accuracy, top_10_accuracy,top_50_accuracy])
+                                        top_2_accuracy, top_10_accuracy,top_50_accuracy,precision_m, recall_m, f1_m])
         model.summary()
 
-        hist = model.fit(x_train, y_train, validation_data=(x_validation, y_validation), epochs=args.epochs,batch_size=args.bs, callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.img_lidar.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
+        hist = model.fit(x_train, y_train, validation_data=(x_validation, y_validation), epochs=args.epochs,batch_size=args.bs, callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.img_lidar'+args.image_feature_to_use+'.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
 
         print(hist.history.keys())
         print('categorical_accuracy', hist.history['categorical_accuracy'],'top_2_accuracy',hist.history['top_2_accuracy'],'top_10_accuracy', hist.history['top_10_accuracy']
@@ -460,29 +477,29 @@ elif multimodal == 3:
     x_validation = [X_lidar_validation, X_img_validation, X_coord_validation]
     x_test = [X_lidar_test, X_img_test, X_coord_test]
 
-    combined_model = concatenate([lidar_model.output, img_model.output, coord_model.output])
+    combined_model = concatenate([lidar_model.output, img_model.output, coord_model.output],name = 'cont_fusion_coord_img_lidar')
     if args.fusion_architecture == 'cnn':
         z = Reshape((combined_model.shape[1], 1))(combined_model)
-        a= z = Conv1D(num_classes * 2, kernel_size=1, strides=1, activation="relu")(z)  # KERNEL SIZE CHANGED FROM 1 TO 2
-        z = Dropout(0.5)(z)
-        z = Flatten()(z)
+        a= z = Conv1D(num_classes * 2, kernel_size=1, strides=1, activation="relu",name = 'conv_fusion_coord_img_lidar')(z)  # KERNEL SIZE CHANGED FROM 1 TO 2
+        z = Dropout(0.5,name = 'drop1_fusion_coord_img_lidar')(z)
+        z = Flatten(name = 'flat_fusion_coord_img_lidar')(z)
 
-        z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(z)
+        z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4),name = 'dense1_fusion_coord_img_lidar')(z)
 
     else:
-        z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(combined_model) # USE THIS AND THE NEXT PART OF CODE OF mlp IMPLEMENTATION
+        z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4),name = 'dense2_fusion_coord_img_lidar')(combined_model) # USE THIS AND THE NEXT PART OF CODE OF mlp IMPLEMENTATION
 
-    z = Dropout(0.5)(z)
-    z = Dense(num_classes, activation="softmax")(z)
+    z = Dropout(0.5,name = 'drop2_fusion_coord_img_lidar')(z)
+    z = Dense(num_classes, activation="softmax",name = 'dense3_fusion_coord_img_lidar')(z)
     model = Model(inputs=[lidar_model.input, img_model.input, coord_model.input], outputs=z)
     model.compile(loss=categorical_crossentropy,
                   optimizer=opt,
                   metrics=[metrics.categorical_accuracy,
-                                        top_2_accuracy, top_10_accuracy,top_50_accuracy])
+                                        top_2_accuracy, top_10_accuracy,top_50_accuracy,precision_m, recall_m, f1_m])
     model.summary()
 
     # TRAINING THE MODEL
-    hist = model.fit(x_train, y_train, validation_data=(x_validation, y_validation), epochs=args.epochs, batch_size=args.bs, callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.coord_img_lidar.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
+    hist = model.fit(x_train, y_train, validation_data=(x_validation, y_validation), epochs=args.epochs, batch_size=args.bs, callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.coord_img_lidar_'+args.image_feature_to_use+'.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
 
     print(hist.history.keys())
     print('categorical_accuracy', hist.history['categorical_accuracy'],'top_2_accuracy',hist.history['top_2_accuracy'],'top_10_accuracy', hist.history['top_10_accuracy']
@@ -517,7 +534,7 @@ else:
                                 optimizer=opt,
                                 metrics=[metrics.categorical_accuracy,
                                         top_2_accuracy, top_10_accuracy,
-                                        top_50_accuracy])
+                                        top_50_accuracy,precision_m, recall_m, f1_m])
             model.summary()
             hist = model.fit(X_coord_train,y_train, validation_data=(X_coord_validation, y_validation),
             epochs=args.epochs,batch_size=args.bs, shuffle=args.shuffle, callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.coord.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
@@ -534,9 +551,6 @@ else:
 
 
     elif 'img' in args.input:
-        print('********************Normalize image********************')
-        X_img_train = X_img_train.astype('float32') / 255
-        X_img_validation = X_img_validation.astype('float32') / 255
 
         if args.strategy == 'reg':
             model = img_model
@@ -558,10 +572,10 @@ else:
                                 optimizer=opt,
                                 metrics=[metrics.categorical_accuracy,
                                         top_2_accuracy, top_10_accuracy,
-                                        top_50_accuracy])
+                                        top_50_accuracy,precision_m, recall_m, f1_m])
             model.summary()
             hist = model.fit(X_img_train,y_train, validation_data=(X_img_validation, y_validation),
-            epochs=args.epochs,batch_size=args.bs, shuffle=args.shuffle, callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.img.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
+            epochs=args.epochs,batch_size=args.bs, shuffle=args.shuffle, callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.img_'+args.image_feature_to_use+'.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
 
             print(hist.history.keys())
             print('categorical_accuracy', hist.history['categorical_accuracy'],'top_2_accuracy',hist.history['top_2_accuracy'],'top_10_accuracy', hist.history['top_10_accuracy']
@@ -596,7 +610,7 @@ else:
                           optimizer=opt,
                           metrics=[metrics.categorical_accuracy,
                                         top_2_accuracy, top_10_accuracy,
-                                        top_50_accuracy])
+                                        top_50_accuracy,precision_m, recall_m, f1_m])
             model.summary()
             hist = model.fit(X_lidar_train,y_train, validation_data=(X_lidar_validation, y_validation),epochs=args.epochs,batch_size=args.bs, shuffle=args.shuffle,callbacks=[tf.keras.callbacks.ModelCheckpoint(args.model_folder+'best_weights.lidar.h5', monitor='val_loss', verbose=1, save_best_only=True,mode='auto')])
 
@@ -611,4 +625,6 @@ else:
         # print('*****************Seperate statics***********************')
         # seperate_metric_in_out_train(model,X_lidar_train,y_train,X_lidar_validation, y_validation)
 
+end = time()
+print('The execusion time is:',end-start)
 
