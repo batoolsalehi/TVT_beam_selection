@@ -38,6 +38,27 @@ def R2_metric(y_true, y_pred):
 
 
 
+########## FUNCTIONS TO CALCULATE F SCORE OF THE MODEL ###############
+from tensorflow.keras import backend as K
+def recall_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    recall = true_positives / (possible_positives + K.epsilon())
+    return recall
+
+def precision_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    return precision
+
+def f1_m(y_true, y_pred):
+    precision = precision_m(y_true, y_pred)
+    recall = recall_m(y_true, y_pred)
+    return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
+######################################################################
+
+
 def seperate_metric_in_out_train(model,x_train,y_train_true,x_test, y_test_true):
     """There are some classes which are not included in the validation set.
     This function evalutes the performance of in-train and not-in-train classes
@@ -134,4 +155,5 @@ def los_accuracy(model,x,y, los, k):
 #     y_test_pred = np.asarray([i.argsort()[-k:][::-1] for i in y_test_pred])
 #
 #     acc_val_los = label
+
 
