@@ -241,7 +241,7 @@ parser.add_argument('--Aug', type=str2bool, help='Do Augmentaion to balance the 
 parser.add_argument('--strategy', type=str ,default='one_hot', help='labeling strategy to use',choices=['baseline','one_hot','reg'])
 parser.add_argument('--augmented_folder', help='Location of the augmeneted data', type=str, default='G:/Beam_Selection_ITU/beam_selection/baseline_code_modified/aug_data/')
 
-parser.add_argument('--fusion_architecture', type=str ,default='mlp', help='Whether to use convolution in fusion network architecture',choices=['mlp','cnn'])
+#parser.add_argument('--fusion_architecture', type=str ,default='mlp', help='Whether to use convolution in fusion network architecture',choices=['mlp','cnn'])
 parser.add_argument('--k_fold', type=int, help='K-fold Cross validation', default=0)
 parser.add_argument('--test_data_folder', help='Location of the test data directory', type=str)
 parser.add_argument('--img_version', type=str, help='Which version of image folder to use', default='')
@@ -436,20 +436,8 @@ if multimodal == 2:
         x_test = [X_lidar_test, X_coord_test]
 
 
-        if args.fusion_architecture == 'cnn':
-            z = Reshape((combined_model.shape[1], 1))(combined_model)
-            a = z = Conv1D(num_classes * 2, kernel_size=1, strides=1, activation="relu", padding="SAME")(
-                z)  # KERNEL SIZE CHANGED FROM 1 TO 2
-            z = Dropout(0.5)(z)
 
-
-            z = Flatten()(z)
-
-            # z = Dropout(0.2)(z)
-            z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(z)
-
-        else:
-            a = z = Dense(num_classes//2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(
+        a = z = Dense(num_classes//2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(
                 combined_model)  # USE THIS AND THE NEXT PART OF CODE OF mlp IMPLEMENTATION
 
         z = Dropout(0.5)(z)
@@ -536,26 +524,7 @@ if multimodal == 2:
         merged_layer = Conv2D(2 * channel, (3, 3), padding="SAME", activation='relu', name='coord_img_conv9')(merged_layer)
 
         z = Flatten()(merged_layer)
-
-        if args.fusion_architecture == 'cnn':
-            z = Reshape((merged_layer.shape[1], 1))(merged_layer)
-            a = z = Conv1D(num_classes * 2, kernel_size=1, strides=1, activation="relu")(
-                z)  # KERNEL SIZE CHANGED FROM 1 TO 2
-            z = Dropout(0.5)(z)
-            z = Flatten()(z)
-
-            # z = Dropout(0.2)(z)
-            z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(z)
-
-        else:
-
-            z = Dense(num_classes * 4, activation="relu")(z)  # USE THIS AND THE NEXT PART OF CODE OF mlp IMPLEMENTATION
-            # z = Dropout(0.5)(z)
-            # z = Dense(num_classes * 2, activation="relu")(z)
-            # z = Dropout(0.5)(z)
-            # z = Dense(num_classes * 2, activation="relu")(z)
-
-
+        z = Dense(num_classes * 4, activation="relu")(z)  # USE THIS AND THE NEXT PART OF CODE OF mlp IMPLEMENTATION
         z = Dropout(0.5)(z)
         z = Dense(num_classes, activation="softmax")(z)
 
@@ -573,18 +542,8 @@ if multimodal == 2:
         #                                kernel_initializer='he_normal',
         #                                activation='relu', name="trans1_radar_lb_rf")(combined_model)
 
-        if args.fusion_architecture == 'cnn':
-            z = Reshape((combined_model.shape[1], 1))(combined_model)
-            a = z = Conv1D(num_classes * 2, kernel_size=1, strides=1, activation="relu")(
-                z)  # KERNEL SIZE CHANGED FROM 1 TO 2
-            z = Dropout(0.5)(z)
-            z = Flatten()(z)
 
-            # z = Dropout(0.2)(z)
-            z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(z)
-
-        else:
-            z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(combined_model)  # USE THIS AND THE NEXT PART OF CODE OF mlp IMPLEMENTATION
+        z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(combined_model)  # USE THIS AND THE NEXT PART OF CODE OF mlp IMPLEMENTATION
 
         z = Dropout(0.5)(z)
         z = Dense(num_classes, activation="softmax")(z)
@@ -656,24 +615,9 @@ elif multimodal == 3:
     #                                kernel_initializer='he_normal',
     #                                activation='relu', name="trans1_radar_lb_rf")(merged_layer)
 
-    if args.fusion_architecture == 'cnn':
-        z = Reshape((combined_model.shape[1], 1))(combined_model)
-        a= z = Conv1D(num_classes * 2, kernel_size=1, strides=1, activation="relu", padding="SAME")(z)  # KERNEL SIZE CHANGED FROM 1 TO 2
-        z = Dropout(0.5)(z)
 
-        # Adding a Skip Layer
-        # z = Conv1D(num_classes* 2, kernel_size=1, strides=1, activation="relu")(z)  # KERNEL SIZE CHANGED FROM 1 TO 2
-        # z = Add()([z, a])
-        # z = Dropout(0.5)(z)
-
-        z = Flatten()(z)
-
-        # z = Dropout(0.2)(z)
-        z = Dense(num_classes * 2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(z)
-
-    else:
-        z = Flatten()(merged_layer)
-        a = z = Dense(num_classes*2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(z) # USE THIS AND THE NEXT PART OF CODE OF mlp IMPLEMENTATION
+    z = Flatten()(merged_layer)
+    a = z = Dense(num_classes*2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(z) # USE THIS AND THE NEXT PART OF CODE OF mlp IMPLEMENTATION
 
     z = Dropout(0.5)(z)
     z = Dense(num_classes, activation="softmax")(z)
