@@ -9,6 +9,10 @@ import numpy as np
 import copy
 import os
 
+def custom_layer(tensor):
+    return tensor
+
+
 def add_model(model_flag, model,save_path):
 
     # save the model structure first
@@ -45,6 +49,9 @@ class ModelHandler:
         chain: a string which indicates if must be returned the complete model
         up to prediction layer, or a segment of the model.
         '''
+        fusion_filters= 10
+        if fusion: fusion_filters = 32
+
 
         if(model_type == 'coord_mlp'):
 
@@ -54,7 +61,7 @@ class ModelHandler:
             layer = MaxPooling1D(pool_size=2, padding="same", name='coord_maxpool1')(layer)
 
             layer = Conv1D(20, 2, padding="SAME", activation='relu', name='coord_conv3')(layer)
-            layer = Conv1D(32, 2, padding="SAME", activation='relu', name='coord_conv4')(layer)
+            layer = Conv1D(fusion_filters, 2, padding="SAME", activation='relu', name='coord_conv4')(layer)
             out = layer = MaxPooling1D(pool_size=2, padding="same", name='coord_maxpool2')(layer)
 
             layer = Flatten(name='coord_flatten')(layer)
@@ -72,6 +79,52 @@ class ModelHandler:
                    out = Dense(num_classes)(layer)
                 architecture = Model(inputs = input_coord, outputs = out)
 
+
+        elif (model_type == 'light_image_custom'):
+            print('************You are using Tongnet model************')
+            dropProb = 0.25
+            channel = 32
+            input_lid = Input(shape=input_shape, name='img_input')
+            layer1 = Conv2D(channel, kernel_size=(7, 7),
+                            activation='relu', padding="SAME", input_shape=input_shape, name='img_conv11')(input_lid)
+            layer2 = Conv2D(channel, kernel_size=(11, 11),
+                            activation='relu', padding="SAME", input_shape=input_shape, name='img_conv12')(input_lid)
+            layer3 = Conv2D(channel, kernel_size=(3, 3),
+                            activation='relu', padding="SAME", input_shape=input_shape, name='img_conv13')(input_lid)
+
+            layer = Concatenate(name='img_concatination')([layer1, layer2, layer3])
+            layer = MaxPooling2D(pool_size=(2, 2), name='img_maxpool1')(layer)
+            layer = Dropout(dropProb, name='img_dropout1')(layer)
+
+            b = layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv3')(layer)
+            layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv4')(layer)
+            layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv5')(layer)  # + b
+            layer = Add(name='img_add2')([layer, b])  # DR
+            layer = MaxPooling2D(pool_size=(2, 2), name='img_maxpool2')(layer)
+            c = layer = Dropout(dropProb, name='img_dropout2')(layer)
+
+            layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv6')(layer)
+            layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv7')(layer)  # + c
+            layer = Add(name='img_add3')([layer, c])  # DR
+            layer = MaxPooling2D(pool_size=(1, 2), name='img_maxpool3')(layer)
+            out = layer = Dropout(dropProb, name='img_dropout3')(layer)
+
+            layer = Flatten(name='img_flatten')(layer)
+            layer = Dense(512, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4),
+                          name='img_dense1')(layer)
+            layer = Dropout(0.25, name='img_dropout4')(layer)
+            layer = Dense(256, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4),
+                          name='img_dense2')(layer)
+            layer = Dropout(0.25, name='img_dropout5')(layer)
+
+            if fusion:
+                architecture = Model(inputs=input_lid, outputs=out)
+            else:
+                if strategy == 'one_hot':
+                    out = Dense(num_classes, activation='softmax', name='image_custom_output')(layer)
+                elif strategy == 'reg':
+                    out = Dense(num_classes)(layer)
+                architecture = Model(inputs=input_lid, outputs=out)
 
 
         elif(model_type == 'light_image_v1_v2'):

@@ -5,7 +5,7 @@ import tensorflow as tf
 import tensorflow.keras
 from tensorflow.keras import metrics
 from tensorflow.keras.models import model_from_json,Model
-from tensorflow.keras.layers import Dense,concatenate, Dropout, Conv1D, Conv2D, Flatten, Reshape, Activation, Add, Conv2DTranspose, Subtract, MaxPooling2D
+from tensorflow.keras.layers import Dense,concatenate, Dropout, Conv1D, Conv2D, Flatten, Reshape, Activation, Add, Conv2DTranspose, Subtract, MaxPooling2D, Concatenate
 from tensorflow.keras.losses import categorical_crossentropy
 #from keras.utils.np_utils import to_categorical
 from tensorflow.keras import regularizers
@@ -17,7 +17,7 @@ from sklearn.model_selection import StratifiedKFold
 from tensorflow.keras import backend as K
 
 from sklearn.model_selection import train_test_split
-from ModelHandler import ModelHandler
+from ModelHandler import add_model,load_model_structure, ModelHandler
 import numpy as np
 import argparse
 from sklearn.model_selection import KFold
@@ -146,11 +146,10 @@ def custom_label(output_file, strategy='one_hot' ):
 
     yMatrix = np.abs(yMatrix)
 
-    # yMatrix /= np.max(yMatrix)
-
     yMatrixShape = yMatrix.shape
     num_classes = yMatrix.shape[1] * yMatrix.shape[2]
     y = yMatrix.reshape(yMatrix.shape[0],num_classes)
+    y_non_on_hot =  np.array(y)
     y_shape = y.shape
 
     if strategy == 'one_hot':
@@ -166,17 +165,11 @@ def custom_label(output_file, strategy='one_hot' ):
         for i in range(0,y_shape[0]):
             thisOutputs = y[i,:]
             logOut = 20*np.log10(thisOutputs)
-            # y[i,:] = thisOutputs
             y[i,:] = logOut
-
     else:
         print('Invalid strategy')
-    # scaler = RobustScaler()
-    # scaler.fit(y)
-    # y = scaler.transform(y)
-    print('one sample', y[0,:])
+    return y_non_on_hot,y,num_classes
 
-    return y,num_classes
 
 
 def balance_data(beams,modal,variance,dim):
@@ -225,6 +218,13 @@ def meaure_topk_for_regression(y_true,y_pred,k):
     return c/len(y_pred)
 
 
+def split_with_new_ratio(train,val,test):
+    all = np.concatenate((train, val , test), axis=0)
+    train_new = all[:int(len(all)*.70)]
+    val_new = all[int(len(all)*.70):int(len(all)*.85)]
+    test_new = all[int(len(all)*.85):]
+    return train_new, val_new, test_new
+
 
 
 parser = argparse.ArgumentParser(description='Configure the files before training the net.')
@@ -245,6 +245,10 @@ parser.add_argument('--augmented_folder', help='Location of the augmeneted data'
 parser.add_argument('--k_fold', type=int, help='K-fold Cross validation', default=0)
 parser.add_argument('--test_data_folder', help='Location of the test data directory', type=str)
 parser.add_argument('--img_version', type=str, help='Which version of image folder to use', default='')
+
+parser.add_argument('--restore_models', type=str2bool, help='Load single modality trained weights', default=False)
+parser.add_argument('--model_folder', help='Location of the trained models folder', type=str,default = 'model_folder/')
+parser.add_argument('--image_feature_to_use', type=str ,default='v1', help='feature images to use',choices=['v1','v2','custom'])
 filepath = 'best_weights.wts.h5'
 
 
@@ -266,25 +270,29 @@ if args.id_gpu >= 0:
 ###############################################################################
 # Outputs
 ###############################################################################
+###############################################################################
+# Outputs
+###############################################################################
 # Read files
-output_train_file = args.data_folder+'beam_output/beams_output_train.npz'
-output_validation_file = args.data_folder+'beam_output/beams_output_validation.npz'
-output_test_file = args.test_data_folder+'beam_output/beams_output_test.npz'
+output_train_file = args.data_folder+'beam_output\\beams_output_train.npz'
+output_validation_file = args.data_folder+'beam_output\\beams_output_validation.npz'
+output_test_file = args.test_data_folder+'beam_output\\beams_output_test.npz'
 
 
-if args.strategy == 'one_hot':
-    y_train,num_classes = custom_label(output_train_file,'one_hot')
-    y_validation, _  = custom_label(output_validation_file,'one_hot')
-    y_test, _ = custom_label(output_test_file, 'one_hot')
-elif args.strategy == 'default':
+if args.strategy == 'default':
     y_train,num_classes = getBeamOutput(output_train_file)
     y_validation, _ = getBeamOutput(output_validation_file)
-elif args.strategy == 'reg':
-    y_train,num_classes = custom_label(output_train_file,'reg')
-    y_validation, _ = custom_label(output_validation_file,'reg')
+    y_test, _ = getBeamOutput(output_test_file)
+elif args.strategy == 'one_hot' or args.strategy == 'reg':
+    y_train_not_onehot,y_train,num_classes = custom_label(output_train_file,args.strategy)
+    y_validation_not_onehot,y_validation, _ = custom_label(output_validation_file,args.strategy)
+    y_test_not_onehot,y_test, _ = custom_label(output_test_file,args.strategy)
+
 else:
     print('invalid labeling strategy')
 
+y_train, y_validation, y_test = split_with_new_ratio(y_train, y_validation, y_test)
+print('label shapes', y_train.shape, y_validation.shape, y_test.shape)
 
 ###############################################################################
 # Inputs
@@ -294,10 +302,10 @@ Initial_labels_val = y_validation
 
 if 'coord' in args.input:
     #train
-    X_coord_train = open_npz(args.data_folder+'coord_input/coord_train.npz','coordinates')
+    X_coord_train = open_npz(args.data_folder+'coord_input\\coord_train.npz','coordinates')
     #validation
-    X_coord_validation = open_npz(args.data_folder+'coord_input/coord_validation.npz','coordinates')
-    X_coord_test = open_npz(args.test_data_folder + 'coord_input/coord_test.npz', 'coordinates') # added for testing
+    X_coord_validation = open_npz(args.data_folder+'coord_input\\coord_validation.npz','coordinates')
+    X_coord_test = open_npz(args.test_data_folder + 'coord_input\\coord_test.npz', 'coordinates') # added for testing
     coord_train_input_shape = X_coord_train.shape
 
     if args.Aug:
@@ -320,26 +328,34 @@ if 'coord' in args.input:
     X_coord_validation = X_coord_validation.reshape((X_coord_validation.shape[0], X_coord_validation.shape[1], 1))
     X_coord_test = X_coord_test.reshape((X_coord_test.shape[0], X_coord_test.shape[1], 1))
 
-
-    print(X_coord_train.shape)
+    X_coord_train, X_coord_validation, X_coord_test = split_with_new_ratio(X_coord_train, X_coord_validation,
+                                                                           X_coord_test)
+    print('label shapes', X_coord_train.shape, X_coord_validation.shape, X_coord_test.shape)
 
 
 
 
 if 'img' in args.input:
     ###############################################################################
-    resizeFac = 20 # Resize Factor
-    nCh = 1 # The number of channels of the image
-    imgDim = (360,640) # Image dimensions
+    resizeFac = 20  # Resize Factor
+    nCh = 1  # The number of channels of the image
+    if args.image_feature_to_use == 'v1':
+        folder = 'image_input'
+    elif args.image_feature_to_use == 'v2':
+        folder = 'image_v2_input'
+    elif args.image_feature_to_use == 'custom':
+        folder = 'image_custom_input'
 
-    image_folder = 'image_input'
-    #train
-    if args.img_version =='v2': image_folder = 'image_v2_input'
-    X_img_train = open_npz(args.data_folder+image_folder +'/img_input_train_'+str(resizeFac)+'.npz','inputs')
-    #validation
-    X_img_validation = open_npz(args.data_folder+image_folder +'/img_input_validation_'+str(resizeFac)+'.npz','inputs')
-    X_img_test = open_npz(args.test_data_folder + image_folder + '/img_input_test_' + str(resizeFac) + '.npz','inputs')
+    # train
+    X_img_train = open_npz(args.data_folder + folder + '/img_input_train_' + str(resizeFac) + '.npz', 'inputs')
+    # validation
+    X_img_validation = open_npz(args.data_folder + folder + '/img_input_validation_' + str(resizeFac) + '.npz',
+                                'inputs')
+    # test
+    X_img_test = open_npz(args.test_data_folder + folder + '/img_input_test_' + str(resizeFac) + '.npz', 'inputs')
     img_train_input_shape = X_img_train.shape
+    print('shape first', X_img_test.shape)
+
 
     if args.Aug:
         try:
@@ -360,6 +376,20 @@ if 'img' in args.input:
             save_npz(args.augmented_folder+'image_input/','img_input_train_20.npz',X_img_train,'img_input_validation_20.npz',X_img_validation)
             print('saving Outputs')
             save_npz(args.augmented_folder+'beam_output/','beams_output_train.npz',y_train,'beams_output_validation.npz',y_validation)
+
+    if args.image_feature_to_use == 'v1' or args.image_feature_to_use =='v2':
+        print('********************Normalize image********************')
+        X_img_train = X_img_train.astype('float32') / 255
+        X_img_validation = X_img_validation.astype('float32') / 255
+        X_img_test = X_img_test.astype('float32') / 255
+    elif args.image_feature_to_use == 'custom':
+        print('********************Reshape images for convolutional********************')
+        X_img_train = X_img_train.reshape((X_img_train.shape[0], X_img_train.shape[1], X_img_train.shape[2],1))
+        X_img_validation = X_img_validation.reshape((X_img_validation.shape[0], X_img_validation.shape[1],X_img_validation.shape[2], 1))
+        X_img_test = X_img_test.reshape((X_img_test.shape[0], X_img_test.shape[1], X_img_test.shape[2],1))
+
+    X_img_train, X_img_validation, X_img_test = split_with_new_ratio(X_img_train, X_img_validation, X_img_test)
+    print('label shapes', X_img_train.shape, X_img_validation.shape, X_img_test.shape)
 
 if 'lidar' in args.input:
     ###############################################################################
@@ -384,6 +414,10 @@ if 'lidar' in args.input:
             y_validation, X_lidar_validation = balance_data(Initial_labels_val,X_lidar_validation,0.001,(20, 200, 10))
             save_npz(args.augmented_folder+'lidar_input/','lidar_train.npz',X_lidar_train,'lidar_validation.npz',X_lidar_validation)
             save_npz(args.augmented_folder+'beam_output/','beams_output_train.npz',y_train,'beams_output_validation.npz',y_validation)
+
+    X_lidar_train, X_lidar_validation, X_lidar_test = split_with_new_ratio(X_lidar_train, X_lidar_validation,
+                                                                           X_lidar_test)
+    print('label shapes', X_lidar_train.shape, X_lidar_validation.shape, X_lidar_test.shape)
 
 ##############################################################################
 # Model configuration
@@ -410,10 +444,23 @@ file_name = 'acc'
 if 'coord' in args.input:
     coord_model = modelHand.createArchitecture('coord_mlp',num_classes,coord_train_input_shape[1],'complete',args.strategy, fusion)
 if 'img' in args.input:
-    if nCh==1:
-        img_model = modelHand.createArchitecture('light_image_v1_v2',num_classes,[img_train_input_shape[1],img_train_input_shape[2],1],'complete',args.strategy,fusion)
+    if args.image_feature_to_use == 'v1' or args.image_feature_to_use == 'v2':
+        model_type = 'light_image_v1_v2'
+    elif args.image_feature_to_use == 'custom':
+        model_type = 'light_image_custom'
+
+    if args.restore_models:
+        img_model = load_model_structure(args.model_folder + 'image_' + args.image_feature_to_use + '_model' + '.json')
+        img_model.load_weights(args.model_folder + 'best_weights.img_' + args.image_feature_to_use + '.h5',
+                               by_name=True)
+        # img_model.trainable = False
     else:
-        img_model = modelHand.createArchitecture('light_image_v1_v2',num_classes,[img_train_input_shape[1],img_train_input_shape[2],img_train_input_shape[3]],'complete',args.strategy, fusion)
+        img_model = modelHand.createArchitecture(model_type, num_classes,
+                                                 [img_train_input_shape[1], img_train_input_shape[2], 1], 'complete',
+                                                 args.strategy, fusion)
+        # add_model('image_'+args.image_feature_to_use,img_model,args.model_folder)
+        if not os.path.exists(args.model_folder + 'image_' + args.image_feature_to_use + '_model' + '.json'):
+            add_model('image_' + args.image_feature_to_use, img_model, args.model_folder)
 if 'lidar' in args.input:
     lidar_model = modelHand.createArchitecture('lidar_marcus',num_classes,[lidar_train_input_shape[1],lidar_train_input_shape[2],lidar_train_input_shape[3]],'complete',args.strategy, fusion)
 
@@ -448,27 +495,27 @@ if multimodal == 2:
     elif 'coord' in args.input and 'img' in args.input:
         file_name = "img_coord"
         # print('********************Normalize image********************')
-        X_img_train = X_img_train.astype('float32') / 255
-        X_img_validation = X_img_validation.astype('float32') / 255
-        X_img_test = X_img_test.astype('float32') / 255
-
+        # X_img_train = X_img_train.astype('float32') / 255
+        # X_img_validation = X_img_validation.astype('float32') / 255
+        # X_img_test = X_img_test.astype('float32') / 255
+        #
 
         # MERGING AND SLPLITTING THE DATA AGAIN
-        X_img = np.concatenate([X_img_train, X_img_validation, X_img_test])
-        X_coord = np.concatenate([X_coord_train, X_coord_validation, X_coord_test])
-        Y_data = np.concatenate([y_train, y_validation, y_test])
-
-        X_img, X_coord, Y_data = sklearn.utils.shuffle(X_img, X_coord, Y_data)
-
-        totalLen = Y_data.shape[0]
-        trainLen = int(trainFraction*totalLen)
-        valLen = int(trainValFraction*totalLen)
-
-        X_img_train, X_img_validation, X_img_test= X_img[0:trainLen, :], X_img[trainLen:valLen, :], X_img[valLen:totalLen, :]
-        X_coord_train, X_coord_validation, X_coord_test = X_coord[0:trainLen, :], X_coord[trainLen:valLen, :], X_coord[valLen:totalLen, :]
-        y_train, y_validation, y_test = Y_data[0:trainLen, :], Y_data[trainLen:valLen, :], Y_data[valLen:totalLen, :]
-
-        # END OF MERGING AND SPLITTING
+        # X_img = np.concatenate([X_img_train, X_img_validation, X_img_test])
+        # X_coord = np.concatenate([X_coord_train, X_coord_validation, X_coord_test])
+        # Y_data = np.concatenate([y_train, y_validation, y_test])
+        #
+        # X_img, X_coord, Y_data = sklearn.utils.shuffle(X_img, X_coord, Y_data)
+        #
+        # totalLen = Y_data.shape[0]
+        # trainLen = int(trainFraction*totalLen)
+        # valLen = int(trainValFraction*totalLen)
+        #
+        # X_img_train, X_img_validation, X_img_test= X_img[0:trainLen, :], X_img[trainLen:valLen, :], X_img[valLen:totalLen, :]
+        # X_coord_train, X_coord_validation, X_coord_test = X_coord[0:trainLen, :], X_coord[trainLen:valLen, :], X_coord[valLen:totalLen, :]
+        # y_train, y_validation, y_test = Y_data[0:trainLen, :], Y_data[trainLen:valLen, :], Y_data[valLen:totalLen, :]
+        #
+        # # END OF MERGING AND SPLITTING
 
         x_validation = [X_img_validation, X_coord_validation]
         x_test = [X_img_test, X_coord_test]
@@ -503,13 +550,11 @@ if multimodal == 2:
                                                                activation='relu', name="trans3_coord_img")(merged_layer)
 
 
-
         merged_layer = Conv2D(channel, (5, 5), padding="SAME", activation='relu', name='conv1_coord_img')(merged_layer)
         merged_layer = Conv2D(channel, (5, 5), padding="SAME", activation='relu', name='conv2_coord_img')(merged_layer)
         merged_layer = MaxPooling2D(pool_size=(2, 2), name='maxpool1_coord_img')(merged_layer)
         merged_layer = Dropout(dropProb, name='coord_img_dropout1')(merged_layer)
-        #
-        #########################################################################################
+
         merged_layer = Conv2D(2 * channel, (3, 3), padding="SAME", activation='relu', name='coord_img_conv4')(merged_layer)
         merged_layer = Conv2D(2 * channel, (3, 3), padding="SAME", activation='relu', name='coord_img_conv5')(merged_layer)
         merged_layer = MaxPooling2D(pool_size=(2, 2), name='coord_img_maxpool2')(merged_layer)
@@ -525,6 +570,8 @@ if multimodal == 2:
 
         z = Flatten()(merged_layer)
         z = Dense(num_classes * 4, activation="relu")(z)  # USE THIS AND THE NEXT PART OF CODE OF mlp IMPLEMENTATION
+        #z = Dropout(0.5)(z)
+        # z = Dense(2 * num_classes, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4),name='coord_img_dense1')(z)
         z = Dropout(0.5)(z)
         z = Dense(num_classes, activation="softmax")(z)
 
@@ -673,18 +720,18 @@ elif multimodal == 3:
 else:
     if 'coord' in args.input:
         # MERGING AND SLPLITTING THE DATA AGAIN
-        X_coord = np.concatenate([X_coord_train, X_coord_validation, X_coord_test])
-        Y_data = np.concatenate([y_train, y_validation, y_test])
-
-        X_coord, Y_data = sklearn.utils.shuffle(X_coord, Y_data)
-        totalLen = Y_data.shape[0]
-        trainLen = int(trainFraction * totalLen)
-        valLen = int(trainValFraction * totalLen)
-
-        X_coord_train, X_coord_validation, X_coord_test = X_coord[0:trainLen, :], X_coord[trainLen:valLen,
-                                                                                  :], X_coord[valLen:totalLen, :]
-        y_train, y_validation, y_test = Y_data[0:trainLen, :], Y_data[trainLen:valLen, :], Y_data[valLen:totalLen,
-                                                                                           :]
+        # X_coord = np.concatenate([X_coord_train, X_coord_validation, X_coord_test])
+        # Y_data = np.concatenate([y_train, y_validation, y_test])
+        #
+        # X_coord, Y_data = sklearn.utils.shuffle(X_coord, Y_data)
+        # totalLen = Y_data.shape[0]
+        # trainLen = int(trainFraction * totalLen)
+        # valLen = int(trainValFraction * totalLen)
+        #
+        # X_coord_train, X_coord_validation, X_coord_test = X_coord[0:trainLen, :], X_coord[trainLen:valLen,
+        #                                                                           :], X_coord[valLen:totalLen, :]
+        # y_train, y_validation, y_test = Y_data[0:trainLen, :], Y_data[trainLen:valLen, :], Y_data[valLen:totalLen,
+        #                                                                                    :]
 
         # END OF MERGING AND SPLITTING
 
@@ -715,23 +762,23 @@ else:
     elif 'img' in args.input:
 
         # print('********************Normalize image********************')
-        X_img_train = X_img_train.astype('float32') / 255
-        X_img_validation = X_img_validation.astype('float32') / 255
-        X_img_test = X_img_test.astype('float32') / 255
-
-        # MERGING AND SLPLITTING THE DATA AGAIN
-        X_img = np.concatenate([X_img_train, X_img_validation, X_img_test])
-        Y_data = np.concatenate([y_train, y_validation, y_test])
-
-        X_img, Y_data = sklearn.utils.shuffle(X_img, Y_data)
-        totalLen = Y_data.shape[0]
-        trainLen = int(trainFraction * totalLen)
-        valLen = int(trainValFraction * totalLen)
-
-        X_img_train, X_img_validation, X_img_test = X_img[0:trainLen, :], X_img[trainLen:valLen,
-                                                                          :], X_img[valLen:totalLen, :]
-        y_train, y_validation, y_test = Y_data[0:trainLen, :], Y_data[trainLen:valLen, :], Y_data[valLen:totalLen,
-                                                                                           :]
+        # X_img_train = X_img_train.astype('float32') / 255
+        # X_img_validation = X_img_validation.astype('float32') / 255
+        # X_img_test = X_img_test.astype('float32') / 255
+        #
+        # # MERGING AND SLPLITTING THE DATA AGAIN
+        # X_img = np.concatenate([X_img_train, X_img_validation, X_img_test])
+        # Y_data = np.concatenate([y_train, y_validation, y_test])
+        #
+        # X_img, Y_data = sklearn.utils.shuffle(X_img, Y_data)
+        # totalLen = Y_data.shape[0]
+        # trainLen = int(trainFraction * totalLen)
+        # valLen = int(trainValFraction * totalLen)
+        #
+        # X_img_train, X_img_validation, X_img_test = X_img[0:trainLen, :], X_img[trainLen:valLen,
+        #                                                                   :], X_img[valLen:totalLen, :]
+        # y_train, y_validation, y_test = Y_data[0:trainLen, :], Y_data[trainLen:valLen, :], Y_data[valLen:totalLen,
+        #                                                                                    :]
         # END OF MERGING AND SPLITTING
 
         if args.strategy == 'reg':
@@ -815,13 +862,13 @@ else:
     hist = model.fit(x_train, y_train, validation_data=(x_validation, y_validation), epochs=args.epochs,
                      batch_size=args.bs, callbacks=cb_list, shuffle=args.shuffle)
 
-    print('categorical_accuracy', hist.history['categorical_accuracy'],
-          'top_2_accuracy', hist.history['top_2_accuracy'],
-          'top_10_accuracy', hist.history['top_10_accuracy'])
-
-    print('val_categorical_accuracy', hist.history['val_categorical_accuracy'],
-          'val_top_2_accuracy', hist.history['val_top_2_accuracy'],
-          'val_top_10_accuracy', hist.history['val_top_10_accuracy'])
+    # print('categorical_accuracy', hist.history['categorical_accuracy'],
+    #       'top_2_accuracy', hist.history['top_2_accuracy'],
+    #       'top_10_accuracy', hist.history['top_10_accuracy'])
+    #
+    # print('val_categorical_accuracy', hist.history['val_categorical_accuracy'],
+    #       'val_top_2_accuracy', hist.history['val_top_2_accuracy'],
+    #       'val_top_10_accuracy', hist.history['val_top_10_accuracy'])
     print('***************Validating model************')
     scores = model.evaluate(x_validation, y_validation)
     print(model.metrics_names, scores)
