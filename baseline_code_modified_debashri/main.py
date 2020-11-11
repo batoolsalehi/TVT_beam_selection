@@ -248,7 +248,7 @@ parser.add_argument('--img_version', type=str, help='Which version of image fold
 
 parser.add_argument('--restore_models', type=str2bool, help='Load single modality trained weights', default=False)
 parser.add_argument('--model_folder', help='Location of the trained models folder', type=str,default = 'model_folder/')
-parser.add_argument('--image_feature_to_use', type=str ,default='v1', help='feature images to use',choices=['v1','v2','custom'])
+parser.add_argument('--image_feature_to_use', type=str ,default='custom', help='feature images to use',choices=['v1','v2','custom'])
 filepath = 'best_weights.wts.h5'
 
 
@@ -302,10 +302,10 @@ Initial_labels_val = y_validation
 
 if 'coord' in args.input:
     #train
-    X_coord_train = open_npz(args.data_folder+'coord_input\\coord_train.npz','coordinates')
+    X_coord_train = open_npz(args.data_folder+'coord_input/coord_train.npz','coordinates')
     #validation
-    X_coord_validation = open_npz(args.data_folder+'coord_input\\coord_validation.npz','coordinates')
-    X_coord_test = open_npz(args.test_data_folder + 'coord_input\\coord_test.npz', 'coordinates') # added for testing
+    X_coord_validation = open_npz(args.data_folder+'coord_input/coord_validation.npz','coordinates')
+    X_coord_test = open_npz(args.test_data_folder + 'coord_input/coord_test.npz', 'coordinates') # added for testing
     coord_train_input_shape = X_coord_train.shape
 
     if args.Aug:
