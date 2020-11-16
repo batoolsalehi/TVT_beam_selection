@@ -56,13 +56,13 @@ class ModelHandler:
         if(model_type == 'coord_mlp'):
 
             input_coord = Input(shape=(input_shape, 1), name='coord_input')
-            layer = Conv1D(20, 2, padding="SAME", activation='relu', name='coord_conv1')(input_coord)
+            layer = Conv1D(20, 2, padding="SAME", activation='relu', name='coord_conv1')(input_coord) # activity_regularizer=regularizers.l2(1e-4)
             layer = Conv1D(10, 2, padding="SAME", activation='relu', name='coord_conv2')(layer)
             layer = MaxPooling1D(pool_size=2, padding="same", name='coord_maxpool1')(layer)
 
             layer = Conv1D(20, 2, padding="SAME", activation='relu', name='coord_conv3')(layer)
             layer = Conv1D(fusion_filters, 2, padding="SAME", activation='relu', name='coord_conv4')(layer)
-            out = layer = MaxPooling1D(pool_size=2, padding="same", name='coord_maxpool2')(layer)
+            out = layer = MaxPooling1D(pool_size=2, padding="same", name='coord_maxpool2')(layer)  # earlier returned from here
 
             layer = Flatten(name='coord_flatten')(layer)
             layer = Dense(1024, activation='relu', name='coord_dense1')(layer)
@@ -86,7 +86,7 @@ class ModelHandler:
             channel = 32
             input_lid = Input(shape=input_shape, name='img_input')
             layer1 = Conv2D(channel, kernel_size=(7, 7),
-                            activation='relu', padding="SAME", input_shape=input_shape, name='img_conv11')(input_lid)
+                            activation='relu', padding="SAME", input_shape=input_shape, name='img_conv11')(input_lid)  #  activity_regularizer=regularizers.l2(1e-4)
             layer2 = Conv2D(channel, kernel_size=(11, 11),
                             activation='relu', padding="SAME", input_shape=input_shape, name='img_conv12')(input_lid)
             layer3 = Conv2D(channel, kernel_size=(3, 3),
@@ -107,7 +107,7 @@ class ModelHandler:
             layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='img_conv7')(layer)  # + c
             layer = Add(name='img_add3')([layer, c])  # DR
             layer = MaxPooling2D(pool_size=(1, 2), name='img_maxpool3')(layer)
-            out = layer = Dropout(dropProb, name='img_dropout3')(layer)
+            out = layer = Dropout(dropProb, name='img_dropout3')(layer) # earlier returned from here
 
             layer = Flatten(name='img_flatten')(layer)
             layer = Dense(512, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4),
@@ -201,8 +201,8 @@ class ModelHandler:
             # layer = MaxPooling2D(pool_size=(1, 2))(layer)
             # e = layer = Dropout(dropProb)(layer)
 
-            layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='lidar_conv8')(layer)
-            out = layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='lidar_conv9')(layer)  # + d
+            out =  layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='lidar_conv8')(layer)
+            layer = Conv2D(channel, (3, 3), padding="SAME", activation='relu', name='lidar_conv9')(layer)  # + d
             #layer = Add(name='lidar_add4')([layer, d])  # DR
 
             layer = Flatten(name='lidar_flatten')(layer)

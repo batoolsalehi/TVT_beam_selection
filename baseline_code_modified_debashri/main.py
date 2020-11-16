@@ -5,6 +5,7 @@ import tensorflow as tf
 import tensorflow.keras
 from tensorflow.keras import metrics
 from tensorflow.keras.models import model_from_json,Model
+from tensorflow.python.keras.metrics import Metric
 from tensorflow.keras.layers import Dense,concatenate, Dropout, Conv1D, Conv2D, Flatten, Reshape, Activation, Add, Conv2DTranspose, Subtract, MaxPooling2D, Concatenate
 from tensorflow.keras.losses import categorical_crossentropy
 #from keras.utils.np_utils import to_categorical
@@ -31,6 +32,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from utils.custom_metrics import *
+import pickle
 
 ############################
 # Fix the seed
@@ -103,6 +105,35 @@ def precision_m(y_true, y_pred):
 def f1_m(y_true, y_pred):
     precision = precision_m(y_true, y_pred)
     recall = recall_m(y_true, y_pred)
+    return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
+######################################################################
+
+
+########## FUNCTIONS TO CALCULATE F SCORE FOR TOP-K ACCURACIES ###############
+from tensorflow.keras import backend as K
+def top_k_recall(Y, k):
+	"""
+	Y : [nb_samples x k] (k predicted labels/neighbours)
+	"""
+	s=0
+	for i in range(Y.shape[0]): # size(0)
+		if 1 in Y[i,:][:k]:
+			s += 1
+	return s / (1. * Y.shape[0])  # size(0)
+
+def top_k_precision(Y, k):
+	"""
+	Y : [nb_samples x k] (k predicted labels/neighbours)
+	"""
+	s = 0
+    #print(type(Y))
+	for i in range(Y.shape[0]):  # size(0)
+		s+=np.sum(Y[i,:][:k]) # s+=Y[i,:][:k].sum().numpy()
+	return s / (1.*Y.shape[0]*k)  # size(0)
+
+def f1_score(y_true, y_pred):
+    precision = top_k_precision(y_true, y_pred)
+    recall = top_k_recall(y_true, y_pred)
     return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
 ######################################################################
 
@@ -217,12 +248,44 @@ def meaure_topk_for_regression(y_true,y_pred,k):
 
     return c/len(y_pred)
 
+# import sys
+# #reload(sys)
+# sys.setdefaultencoding('utf-8')
 
 def split_with_new_ratio(train,val,test):
+
+    with open('indeces.pkl','rb') as handle:
+        indeces = pickle.load(handle)
+        handle.close()
+    indeces=indeces.squeeze()
     all = np.concatenate((train, val , test), axis=0)
-    train_new = all[:int(len(all)*.70)]
-    val_new = all[int(len(all)*.70):int(len(all)*.85)]
-    test_new = all[int(len(all)*.85):]
+
+    train_new = all[indeces[:int(len(all) * .70)]]
+    val_new = all[indeces[int(len(all)*.70) : int(len(all)*.85)]]
+    test_new = all[indeces[int(len(all)*.85) : ]]
+    return train_new, val_new, test_new
+
+import h5py
+# def split_with_new_ratio(train,val,test):
+#     with h5py.File('indices.h5', 'r') as hf:
+#         indeces = hf['indices'][:]
+#     indeces=indeces.squeeze()
+#     all = np.concatenate((train, val , test), axis=0)
+#
+#     train_new = all[indeces[:int(len(all) * .70)]]
+#     val_new = all[indeces[int(len(all)*.70) : int(len(all)*.85)]]
+#     test_new = all[indeces[int(len(all)*.85) : ]]
+#     return train_new, val_new, test_new
+
+def split_with_new_ratio(train,val,test):
+
+    all = np.concatenate((train, val , test), axis=0)
+
+    #np.random.shuffle(all)
+
+    train_new = all[:int(len(all) * .70)]
+    val_new = all[int(len(all)*.70) : int(len(all)*.85)]
+    test_new = all[int(len(all)*.85) : ]
     return train_new, val_new, test_new
 
 
@@ -477,54 +540,14 @@ cb_list = [tf.keras.callbacks.ModelCheckpoint(filepath, monitor='val_loss', verb
 if multimodal == 2:
     if 'coord' in args.input and 'lidar' in args.input:
         file_name = "lidar_coord"
-        combined_model = concatenate([lidar_model.output, coord_model.output])
+        #combined_model = concatenate([lidar_model.output, coord_model.output])
         x_validation = [X_lidar_validation, X_coord_validation]
         x_train = [X_lidar_train, X_coord_train]
         x_test = [X_lidar_test, X_coord_test]
 
-
-
-        a = z = Dense(num_classes//2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(
-                combined_model)  # USE THIS AND THE NEXT PART OF CODE OF mlp IMPLEMENTATION
-
-        z = Dropout(0.5)(z)
-        z = Dense(num_classes, activation="softmax")(z)
-        model = Model(inputs=[lidar_model.input, coord_model.input], outputs=z)
-
-
-    elif 'coord' in args.input and 'img' in args.input:
-        file_name = "img_coord"
-        # print('********************Normalize image********************')
-        # X_img_train = X_img_train.astype('float32') / 255
-        # X_img_validation = X_img_validation.astype('float32') / 255
-        # X_img_test = X_img_test.astype('float32') / 255
-        #
-
-        # MERGING AND SLPLITTING THE DATA AGAIN
-        # X_img = np.concatenate([X_img_train, X_img_validation, X_img_test])
-        # X_coord = np.concatenate([X_coord_train, X_coord_validation, X_coord_test])
-        # Y_data = np.concatenate([y_train, y_validation, y_test])
-        #
-        # X_img, X_coord, Y_data = sklearn.utils.shuffle(X_img, X_coord, Y_data)
-        #
-        # totalLen = Y_data.shape[0]
-        # trainLen = int(trainFraction*totalLen)
-        # valLen = int(trainValFraction*totalLen)
-        #
-        # X_img_train, X_img_validation, X_img_test= X_img[0:trainLen, :], X_img[trainLen:valLen, :], X_img[valLen:totalLen, :]
-        # X_coord_train, X_coord_validation, X_coord_test = X_coord[0:trainLen, :], X_coord[trainLen:valLen, :], X_coord[valLen:totalLen, :]
-        # y_train, y_validation, y_test = Y_data[0:trainLen, :], Y_data[trainLen:valLen, :], Y_data[valLen:totalLen, :]
-        #
-        # # END OF MERGING AND SPLITTING
-
-        x_validation = [X_img_validation, X_coord_validation]
-        x_test = [X_img_test, X_coord_test]
-        x_train = [X_img_train, X_coord_train]
-
-        #merged_layer = concatenate([img_model.output, coord_model.output])
-        merged_layer = tensorflow.keras.layers.multiply([img_model.output, coord_model.output])
+        merged_layer = tensorflow.keras.layers.multiply([lidar_model.output, coord_model.output])
         channel = 16
-        dropProb = 0.25
+        dropProb = 0.25  # 0.25
 
         # merged_layer = tensorflow.keras.layers.Conv2DTranspose(4 * channel, 9, strides=2,  # change stride to 3
         #                                                        # kernel size: (7,2) # 3*channel
@@ -536,18 +559,122 @@ if multimodal == 2:
                                                                # kernel size: (7,2) # 3*channel
                                                                padding='same',
                                                                kernel_initializer='he_normal',
+                                                               activation='relu', name="trans1_lidar_coord")(
+            merged_layer)
+
+        merged_layer = tensorflow.keras.layers.Conv2DTranspose(2 * channel, 5, strides=2,  # change stride to 2
+                                                               # kernel size: (5,2) 2*channel
+                                                               padding='same',
+                                                               kernel_initializer='he_normal',
+                                                               activation='relu', name="trans2_lidar_coord")(
+            merged_layer)
+
+        merged_layer = tensorflow.keras.layers.Conv2DTranspose(channel, 3, strides=1,  # kernel size: (3,1) stride = 1
+                                                               padding='same',
+                                                               kernel_initializer='he_normal',
+                                                               activation='relu', name="trans3_lidar_coord")(
+            merged_layer)
+
+        # merged_layer = tensorflow.keras.layers.Conv2DTranspose(channel, 3, strides=1,  # kernel size: (3,1) stride = 1
+        #                                                        padding='same',
+        #                                                        kernel_initializer='he_normal',
+        #                                                        activation='relu', name="trans4_coord_img")(merged_layer)
+
+        merged_layer = Conv2D(channel, (5, 5), padding="SAME", activation='relu', name='conv1_lidar_coord')(
+            merged_layer)
+        merged_layer = Conv2D(channel, (5, 5), padding="SAME", activation='relu', name='conv2_lidar_coord')(
+            merged_layer)
+        merged_layer = MaxPooling2D(pool_size=(2, 2), name='maxpool1_lidar_coord')(merged_layer)
+        merged_layer = Dropout(dropProb, name='lidar_coord_dropout1')(merged_layer)
+
+        merged_layer = Conv2D(2 * channel, (3, 3), padding="SAME", activation='relu', name='lidar_coord_conv4')(
+            merged_layer)
+        merged_layer = Conv2D(2 * channel, (3, 3), padding="SAME", activation='relu', name='lidar_coord_conv5')(
+            merged_layer)
+        merged_layer = MaxPooling2D(pool_size=(2, 2), name='lidar_coord_maxpool2')(merged_layer)
+        merged_layer = Dropout(dropProb, name='lidar_coord_dropout2')(merged_layer)
+
+        ################################################################################
+        # merged_layer = Conv2D(3 * channel, (3, 3), padding="SAME", activation='relu')(merged_layer)
+        # merged_layer = Conv2D(3 * channel, (3, 3), padding="SAME", activation='relu')(merged_layer)
+        # merged_layer = MaxPooling2D(pool_size=(2, 2))(merged_layer)
+        # merged_layer = Dropout(dropProb)(merged_layer)
+        ####################################################################################
+
+        merged_layer = Conv2D(4 * channel, (3, 3), padding="SAME", activation='relu', name='lidar_coord_conv6')(
+            merged_layer)
+        merged_layer = Conv2D(4 * channel, (3, 3), padding="SAME", activation='relu', name='lidar_coord_conv7')(
+            merged_layer)
+        merged_layer = MaxPooling2D(pool_size=(1, 2), name='lidar_coord_maxpool3')(merged_layer)
+        merged_layer = Dropout(dropProb, name='lidar_coord_dropout3')(merged_layer)
+
+        ###################################################################
+        # merged_layer = Conv2D(8 * channel, (3, 3), padding="SAME", activation='relu')(merged_layer)
+        # merged_layer = Conv2D(8 * channel, (3, 3), padding="SAME", activation='relu')(merged_layer)
+        # merged_layer = MaxPooling2D(pool_size=(1, 2))(merged_layer)
+        # merged_layer = Dropout(dropProb)(merged_layer)
+
+        ###########################################################################
+
+        merged_layer = Conv2D(4 * channel, (3, 3), padding="SAME", activation='relu', name='lidar_coord_conv8')(
+            merged_layer)
+        merged_layer = Conv2D(2 * channel, (3, 3), padding="SAME", activation='relu', name='lidar_coord_conv9')(
+            merged_layer)
+
+        z = Flatten()(merged_layer)
+        z = Dense(num_classes * 4, activation="relu")(z)  # activity_regularizer=regularizers.l2(1e-4)
+        z = Dropout(0.5)(z)
+        # z = Dense(2 * num_classes, activation='relu', name='coord_img_dense1')(z)
+        # z = Dense(2 * num_classes, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4),name='coord_img_dense1')(z)
+        # z = Dropout(0.5)(z)
+        z = Dense(num_classes, activation="softmax")(z)
+
+        model = Model(inputs=[lidar_model.input, coord_model.input], outputs=z)
+
+
+    elif 'coord' in args.input and 'img' in args.input:
+        file_name = "img_coord"
+
+        x_validation = [X_img_validation, X_coord_validation]
+        x_test = [X_img_test, X_coord_test]
+        x_train = [X_img_train, X_coord_train]
+
+        #merged_layer = concatenate([img_model.output, coord_model.output])
+        print("coord..", coord_model.output.shape)
+        print("img..", img_model.output.shape)
+        merged_layer = tensorflow.keras.layers.multiply([img_model.output, coord_model.output])
+        print("lidar reshaped..", merged_layer.shape)
+        #merged_layer = tensorflow.keras.layers.subtract([coord_model.output, img_model.output])
+        channel = 16
+        dropProb = 0.25 # 0.25
+
+        # merged_layer = tensorflow.keras.layers.Conv2DTranspose(4 * channel, 9, strides=2,  # change stride to 3
+        #                                                        # kernel size: (7,2) # 3*channel
+        #                                                        padding='same',
+        #                                                        kernel_initializer='he_normal',
+        #                                                        activation='relu', name="trans0_coord_img")(merged_layer) # added
+
+        merged_layer = tensorflow.keras.layers.Conv2DTranspose(3*channel, 7, strides=2,
+                                                               # kernel size: (7,2) # 3*channel
+                                                               padding='same',
+                                                               kernel_initializer='he_normal',
                                                                activation='relu', name="trans1_coord_img")(merged_layer)
 
-        merged_layer = tensorflow.keras.layers.Conv2DTranspose(2 * channel, 5, strides=2,
+        merged_layer = tensorflow.keras.layers.Conv2DTranspose(2 * channel, 5, strides=2, # change stride to 2
                                                                # kernel size: (5,2) 2*channel
                                                                padding='same',
                                                                kernel_initializer='he_normal',
                                                                activation='relu', name="trans2_coord_img")(merged_layer)
 
-        merged_layer = tensorflow.keras.layers.Conv2DTranspose(channel, 3, strides=1,  # kernel size: (3,1) # change stride to 2
+        merged_layer = tensorflow.keras.layers.Conv2DTranspose(channel, 3, strides=1,  # kernel size: (3,1) stride = 1
                                                                padding='same',
                                                                kernel_initializer='he_normal',
                                                                activation='relu', name="trans3_coord_img")(merged_layer)
+
+        # merged_layer = tensorflow.keras.layers.Conv2DTranspose(channel, 3, strides=1,  # kernel size: (3,1) stride = 1
+        #                                                        padding='same',
+        #                                                        kernel_initializer='he_normal',
+        #                                                        activation='relu', name="trans4_coord_img")(merged_layer)
 
 
         merged_layer = Conv2D(channel, (5, 5), padding="SAME", activation='relu', name='conv1_coord_img')(merged_layer)
@@ -560,19 +687,37 @@ if multimodal == 2:
         merged_layer = MaxPooling2D(pool_size=(2, 2), name='coord_img_maxpool2')(merged_layer)
         merged_layer = Dropout(dropProb, name='coord_img_dropout2')(merged_layer)
 
+        ################################################################################
+        # merged_layer = Conv2D(3 * channel, (3, 3), padding="SAME", activation='relu')(merged_layer)
+        # merged_layer = Conv2D(3 * channel, (3, 3), padding="SAME", activation='relu')(merged_layer)
+        # merged_layer = MaxPooling2D(pool_size=(2, 2))(merged_layer)
+        # merged_layer = Dropout(dropProb)(merged_layer)
+        ####################################################################################
+
         merged_layer = Conv2D(4 * channel, (3, 3), padding="SAME", activation='relu', name='coord_img_conv6')(merged_layer)
         merged_layer = Conv2D(4 * channel, (3, 3), padding="SAME", activation='relu', name='coord_img_conv7')(merged_layer)
         merged_layer = MaxPooling2D(pool_size=(1, 2), name='coord_img_maxpool3')(merged_layer)
         merged_layer = Dropout(dropProb, name='coord_img_dropout3')(merged_layer)
 
+
+        ###################################################################
+        # merged_layer = Conv2D(8 * channel, (3, 3), padding="SAME", activation='relu')(merged_layer)
+        # merged_layer = Conv2D(8 * channel, (3, 3), padding="SAME", activation='relu')(merged_layer)
+        # merged_layer = MaxPooling2D(pool_size=(1, 2))(merged_layer)
+        # merged_layer = Dropout(dropProb)(merged_layer)
+
+        ###########################################################################
+
+
         merged_layer = Conv2D(4 * channel, (3, 3), padding="SAME", activation='relu', name='coord_img_conv8')(merged_layer)
         merged_layer = Conv2D(2 * channel, (3, 3), padding="SAME", activation='relu', name='coord_img_conv9')(merged_layer)
 
         z = Flatten()(merged_layer)
-        z = Dense(num_classes * 4, activation="relu")(z)  # USE THIS AND THE NEXT PART OF CODE OF mlp IMPLEMENTATION
-        #z = Dropout(0.5)(z)
-        # z = Dense(2 * num_classes, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4),name='coord_img_dense1')(z)
+        z = Dense(num_classes * 4, activation="relu")(z)  # activity_regularizer=regularizers.l2(1e-4)
         z = Dropout(0.5)(z)
+        #z = Dense(2 * num_classes, activation='relu', name='coord_img_dense1')(z)
+        #z = Dense(2 * num_classes, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4),name='coord_img_dense1')(z)
+        #z = Dropout(0.5)(z)
         z = Dense(num_classes, activation="softmax")(z)
 
         model = Model(inputs=[img_model.input, coord_model.input], outputs=z)
@@ -651,23 +796,92 @@ elif multimodal == 3:
     file_name = "lidar_img_coord"
     # combined_model = concatenate([lidar_model.output, img_model.output, coord_model.output], axis=1)
     x_test = [X_lidar_test, X_img_test, X_coord_test]
-    combined_model = tensorflow.keras.layers.subtract([lidar_model.output, coord_model.output])
-    merged_layer = tensorflow.keras.layers.add([combined_model, img_model.output])
-    #merged_layer = concatenate([combined_model, lidar_model.output])
-    #added_model = tensorflow.keras.layers.add([combined_model, coord_model.output], name='fusion2_radar_lb_rf_hb_rf')
-    #merged_layer = Reshape((merged_layer.shape+[1]))(merged_layer)
 
-    # merged_layer = tensorflow.keras.layers.Conv1DTranspose(num_classes, 3, strides=2,
-    #                                padding='same',
-    #                                kernel_initializer='he_normal',
-    #                                activation='relu', name="trans1_radar_lb_rf")(merged_layer)
 
+    print("lidar..", lidar_model.output.shape)
+    print("coord..", coord_model.output.shape)
+    print("img..", img_model.output.shape)
+    merged_layer = tensorflow.keras.layers.multiply([lidar_model.output, coord_model.output])
+    img_reshaped = Reshape((img_model.output.shape[2], img_model.output.shape[1], img_model.output.shape[3]))(
+        img_model.output)
+    print("before cropping..", img_reshaped.shape)
+    crop = (img_reshaped.shape[1] - lidar_model.output.shape[1])//2
+    print("the crop size: ", crop)
+    img_reshaped = tensorflow.keras.layers.Cropping2D(cropping=((crop, crop), (0, 0)))(img_reshaped)
+    print("after cropping..", img_reshaped.shape)
+    merged_layer = tensorflow.keras.layers.multiply([merged_layer, img_reshaped])
+    channel = 16
+    dropProb = 0.25  # 0.25
+
+    # merged_layer = tensorflow.keras.layers.Conv2DTranspose(4 * channel, 9, strides=2,  # change stride to 3
+    #                                                        # kernel size: (7,2) # 3*channel
+    #                                                        padding='same',
+    #                                                        kernel_initializer='he_normal',
+    #                                                        activation='relu', name="trans0_coord_img")(merged_layer) # added
+
+    merged_layer = tensorflow.keras.layers.Conv2DTranspose(3 * channel, 7, strides=2,
+                                                           # kernel size: (7,2) # 3*channel
+                                                           padding='same',
+                                                           kernel_initializer='he_normal',
+                                                           activation='relu', name="trans1_lidar_img_coord")(merged_layer)
+
+    merged_layer = tensorflow.keras.layers.Conv2DTranspose(2 * channel, 5, strides=2,  # change stride to 2
+                                                           # kernel size: (5,2) 2*channel
+                                                           padding='same',
+                                                           kernel_initializer='he_normal',
+                                                           activation='relu', name="trans2_lidar_img_coord")(merged_layer)
+
+    merged_layer = tensorflow.keras.layers.Conv2DTranspose(channel, 3, strides=1,  # kernel size: (3,1) stride = 1
+                                                           padding='same',
+                                                           kernel_initializer='he_normal',
+                                                           activation='relu', name="trans3_lidar_img_coord")(merged_layer)
+
+    # merged_layer = tensorflow.keras.layers.Conv2DTranspose(channel, 3, strides=1,  # kernel size: (3,1) stride = 1
+    #                                                        padding='same',
+    #                                                        kernel_initializer='he_normal',
+    #                                                        activation='relu', name="trans4_coord_img")(merged_layer)
+
+    merged_layer = Conv2D(channel, (5, 5), padding="SAME", activation='relu', name='conv1_lidar_img_coord')(merged_layer)
+    merged_layer = Conv2D(channel, (5, 5), padding="SAME", activation='relu', name='conv2_lidar_img_coord')(merged_layer)
+    merged_layer = MaxPooling2D(pool_size=(2, 2), name='maxpool1_coord_img')(merged_layer)
+    merged_layer = Dropout(dropProb, name='lidar_img_coord_dropout1')(merged_layer)
+
+    merged_layer = Conv2D(2 * channel, (3, 3), padding="SAME", activation='relu', name='lidar_img_coord_conv4')(merged_layer)
+    merged_layer = Conv2D(2 * channel, (3, 3), padding="SAME", activation='relu', name='lidar_img_coord_conv5')(merged_layer)
+    merged_layer = MaxPooling2D(pool_size=(2, 2), name='lidar_img_coord_maxpool2')(merged_layer)
+    merged_layer = Dropout(dropProb, name='lidar_img_coord_dropout2')(merged_layer)
+
+    ################################################################################
+    # merged_layer = Conv2D(3 * channel, (3, 3), padding="SAME", activation='relu')(merged_layer)
+    # merged_layer = Conv2D(3 * channel, (3, 3), padding="SAME", activation='relu')(merged_layer)
+    # merged_layer = MaxPooling2D(pool_size=(2, 2))(merged_layer)
+    # merged_layer = Dropout(dropProb)(merged_layer)
+    ####################################################################################
+
+    merged_layer = Conv2D(4 * channel, (3, 3), padding="SAME", activation='relu', name='lidar_img_coord_conv6')(merged_layer)
+    merged_layer = Conv2D(4 * channel, (3, 3), padding="SAME", activation='relu', name='lidar_img_coord_conv7')(merged_layer)
+    merged_layer = MaxPooling2D(pool_size=(1, 2), name='lidar_img_coord_maxpool3')(merged_layer)
+    merged_layer = Dropout(dropProb, name='lidar_img_coord_dropout3')(merged_layer)
+
+    ###################################################################
+    # merged_layer = Conv2D(8 * channel, (3, 3), padding="SAME", activation='relu')(merged_layer)
+    # merged_layer = Conv2D(8 * channel, (3, 3), padding="SAME", activation='relu')(merged_layer)
+    # merged_layer = MaxPooling2D(pool_size=(1, 2))(merged_layer)
+    # merged_layer = Dropout(dropProb)(merged_layer)
+
+    ###########################################################################
+
+    merged_layer = Conv2D(4 * channel, (3, 3), padding="SAME", activation='relu', name='lidar_img_coord_conv8')(merged_layer)
+    merged_layer = Conv2D(2 * channel, (3, 3), padding="SAME", activation='relu', name='lidar_img_coord_conv9')(merged_layer)
 
     z = Flatten()(merged_layer)
-    a = z = Dense(num_classes*2, activation="relu", kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4))(z) # USE THIS AND THE NEXT PART OF CODE OF mlp IMPLEMENTATION
-
+    z = Dense(num_classes * 4, activation="relu")(z)  # activity_regularizer=regularizers.l2(1e-4)
     z = Dropout(0.5)(z)
+    # z = Dense(2 * num_classes, activation='relu', name='coord_img_dense1')(z)
+    # z = Dense(2 * num_classes, activation='relu', kernel_regularizer=regularizers.l1_l2(l1=1e-5, l2=1e-4),name='coord_img_dense1')(z)
+    # z = Dropout(0.5)(z)
     z = Dense(num_classes, activation="softmax")(z)
+
     model = Model(inputs=[lidar_model.input, img_model.input, coord_model.input], outputs=z)
 
     model.summary()
@@ -858,6 +1072,12 @@ else:
                   metrics=[metrics.categorical_accuracy, top_2_accuracy,
                            metrics.top_k_categorical_accuracy, top_10_accuracy, top_30_accuracy,
                            top_50_accuracy, precision_m, recall_m, f1_m])
+
+    # model.compile(loss=categorical_crossentropy,
+    #               optimizer=opt,
+    #               metrics=[metrics.categorical_accuracy, top_2_accuracy,
+    #                        metrics.top_k_categorical_accuracy, top_10_accuracy, top_30_accuracy,
+    #                        top_50_accuracy, tf.keras.metrics.Precision(), tf.keras.metrics.Recall()]) # USING KERAS'S PRECION AND RECALL METRICS
     model.summary()
     hist = model.fit(x_train, y_train, validation_data=(x_validation, y_validation), epochs=args.epochs,
                      batch_size=args.bs, callbacks=cb_list, shuffle=args.shuffle)
@@ -876,6 +1096,12 @@ else:
     print('***************Testing the model************')
     scores = model.evaluate(x_test, y_test)
     print(model.metrics_names, scores)
+
+    # print("**********************Calculating top-k precision and recall *****************")
+    # test_Y_hat = model.predict(x_test)
+    # for k in([1, 2, 5, 10, 30, 50]):
+    #     print("\nThe top-", k, " percision is. ", top_k_precision(test_Y_hat, k))
+    #     print("The top-", k, " recall is. ", top_k_recall(test_Y_hat, k))
 
 K.clear_session()
 
