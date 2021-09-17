@@ -10,7 +10,7 @@ Note: We used three modalites with our customized image extracted features.
 
 
 
-Case2: If you want to regenerate the weighst.
+Case2: If you want to regenerate the weights.
 1. We first train on single modalites. Run these commands.
 For coordinates:
 
