@@ -1,4 +1,4 @@
-# beam_selection
+# Top-K Best Beam from Multimodal Sensor Data with RF Ground Truth
 ##########################Instruction for train and testing our pipleline##########################
 
 Case1: If you want to predict the output with our model:
