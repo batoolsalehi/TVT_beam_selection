@@ -15,8 +15,10 @@ Case2: If you want to regenerate the weighst.
 For coordinates:
 
 `python main.py --data_folder /home/batool/beam_selection_NU/baseline_data/ --test_data_folder /home/batool/beam_selection_NU/baseline_data/ --input coord --epochs 80`
+
 For Images:
 `python main.py --data_folder /home/batool/beam_selection_NU/baseline_data/ --test_data_folder /home/batool/beam_selection_NU/baseline_data/ --input img  --epochs 20 --image_feature_to_use custom`
+
 For lidar:
 `python main.py --data_folder /home/batool/beam_selection_NU/baseline_data/ --test_data_folder /home/batool/beam_selection_NU/baseline_data/ --input lidar  --epochs 50`
 
