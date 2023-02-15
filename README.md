@@ -1,5 +1,20 @@
-# Top-K Best Beam from Multimodal Sensor Data with RF Ground Truth
-##########################Instruction for train and testing our pipleline##########################
+# Deep learning on multimodal sensor data at the wireless edge for vehicular network
+
+### Citing This Paper
+Please cite the following paper if you intend to use this code for your research.
+
+ `@article{salehi2022deep,
+  title={Deep learning on multimodal sensor data at the wireless edge for vehicular network},
+  author={Salehi, Batool and Reus-Muns, Guillem and Roy, Debashri and Wang, Zifeng and Jian, Tong and Dy, Jennifer and Ioannidis, Stratis and Chowdhury, Kaushik},
+  journal={IEEE Transactions on Vehicular Technology},
+  volume={71},
+  number={7},
+  pages={7639--7655},
+  year={2022},
+  publisher={IEEE}
+}`
+
+### Instruction for train and testing our pipleline
 
 Case1: If you want to predict the output with our model:
 - Go to test_front_end folder
@@ -28,8 +43,5 @@ Using these command, you should have the json and weights of three modalites, OR
 2. Then, we attach the fusion netwrok. We then reload the weights we learned from single modalites and train the model:
 `python main.py --data_folder /home/batool/beam_selection_NU/baseline_data/ --test_data_folder /home/batool/beam_selection_NU/baseline_data/ --input coord img lidar  --epochs 60 --image_feature_to_use custom --restore_models True`
 
-##############################################################################
-##########################Extra notes#########################################
-##############################################################################
-
+### Extra notes
 In our code, we assumed that our extracted features are in a folder named 'input_img_custom' in baseline data directory.
