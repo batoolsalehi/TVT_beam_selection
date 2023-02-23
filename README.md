@@ -29,5 +29,6 @@ The pre-trained model are available here (https://drive.google.com/drive/folders
 
 
 ## Train and Test:
-Please use the command below to run the framework. For example for testing, set the argument train_or_test as "test" and use the pre-trained models.
-python main.py  --id_gpu "gpu id to use" --data_folder "local path to dataset" --input coord img lidar --test_data_folder "local path to dataset" --model_folder ""local path to model folders"" --image_feature_to_use custom --train_or_test test
+Please use the command below to run the framework. As an example, for testing on all three modalities, set the argument train_or_test as "test" and use the pre-trained models.
+
+python main.py  --id_gpu "gpu id to use" --data_folder "local path to dataset" --input coord img lidar --test_data_folder "local path to dataset" --model_folder "local path to model folders" --image_feature_to_use custom --train_or_test test
